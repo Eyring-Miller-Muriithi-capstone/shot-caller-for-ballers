@@ -92,24 +92,24 @@ def draw_court(ax=None, color='black', lw=2, outer_lines=False):
     return ax
 
 def scatter_plot_player_shots(df):
-"""For scatter plotting a players shots. The player needs to be held in their
+    """For scatter plotting a players shots. The player needs to be held in their
     own df for this, or all shots will be charted. 
     Example: (for Steph Curry) df_curry = df.player == 'Stephen Curry' 
     Then the player's df can be inputted to the plot."""
     g=sns.relplot(data=df, kind = 'scatter',
-        x = df.loc_x, y= df.loc_y, hue= df.shot_result)
+    x = df.loc_x, y= df.loc_y, hue= df.shot_result)
 
     for i, ax in enumerate(g.axes.flat):
-    ax = draw_court(ax, outer_lines=True)
-    ax.set_xlim(-300, 300)
-    ax.set_ylim(-100, 500)
+        ax = draw_court(ax, outer_lines=True)
+        ax.set_xlim(-300, 300)
+        ax.set_ylim(-100, 500)
 
 ################# Hypothesis Testing ##########################
 
 def chi_square_test(col1, col2):
-"""This function runs a chi-square test on two variables to find any 
-statistical relationship of dependancy. 
-To call this function, input your df.(column_1) and df.(column_2)"""
+    """This function runs a chi-square test on two variables to find any 
+    statistical relationship of dependancy. 
+    To call this function, input your df.(column_1) and df.(column_2)"""
 
     alpha = 0.05
     null_hypothesis = "{col1} and {col2} are independent"
@@ -126,4 +126,4 @@ To call this function, input your df.(column_1) and df.(column_2)"""
     else:
         print("Fail to reject the null")
         print("Insufficient evidence to reject the null")
-p
+    p
