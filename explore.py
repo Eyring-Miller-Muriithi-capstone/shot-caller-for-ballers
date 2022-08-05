@@ -106,7 +106,7 @@ for i, ax in enumerate(g.axes.flat):
 
 ################# Hypothesis Testing ##########################
 
-def chi_square_test(df.col1, df.col2)
+def chi_square_test(col1, col2)
 """This function runs a chi-square test on two variables to find any 
 statistical relationship of dependancy. 
 To call this function, input your df.(column_1) and df.(column_2)"""
@@ -116,9 +116,9 @@ null_hypothesis = "{col1} and {col2} are independent"
 alternative_hypothesis = "there is a relationship between {col1} and {col2}"
 
 # Setup a crosstab of observed survival to pclass
-observed = pd.crosstab(df.col1, df.col2)
+    observed = pd.crosstab(col1, col2)
 
-chi2, p, degf, expected = stats.chi2_contingency(observed)
+    chi2, p, degf, expected = stats.chi2_contingency(observed)
 
     if p < alpha:
         print("Reject the null hypothesis that", null_hypothesis)
