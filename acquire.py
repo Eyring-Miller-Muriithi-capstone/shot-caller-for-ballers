@@ -21,18 +21,21 @@ from sklearn.cluster import KMeans
 
 def get_team_player_ids():
     '''
-    1
     Acquires a dataframe from cached .csv, or NBA API calls (and caches it if it doesn't exist),
     then returns the data as as dataframe with the columns 'team_id' and 'player_id'. 
+    Needed to account for players who played for multiple teams in the season.
     '''
     filename = 'team_player_ids.csv'
+    # Checks if .csv alreqady exists
     if os.path.isfile(filename):
         team_player_ids =  pd.read_csv(filename, index_col=0)
         players_list = team_player_ids.values.tolist()
     else:
         df_teams = pd.DataFrame(teams.get_teams())
+        # Create a list of team ids
         team_id_list = list(df_teams.id)
         players_list = []
+        # Attaches team_id to player_id
         for team in team_id_list:
             df_tpd = teamplayerdashboard.TeamPlayerDashboard(team,
                                                             season = '2021-22').get_data_frames()
@@ -40,6 +43,7 @@ def get_team_player_ids():
             for player in player_list:
                 row = [team,player]
                 players_list.append(row)
+        # Isolates the relevant columns (team and player id) and saves to .csv and returns a list
         team_player_ids = pd.DataFrame(players_list, columns = ['team_id','player_id'])
         team_player_ids.to_csv('team_player_ids.csv')
         players_list = team_player_ids.values.tolist()
@@ -48,11 +52,12 @@ def get_team_player_ids():
 
 def all_21_22_shots():
     '''
-    2
     Acquires a dataframe of all shot attempts made in the 2021-2022 season by all players.
     '''
+    # Use above function to get list of players + teams ids.  Each is a player's entire shot record for the season.
     players_list = get_team_player_ids()
     filename = 'all_last_season_shots.csv'
+    # Check if file exists
     if os.path.isfile(filename):
         df_shots =  pd.read_csv(filename, index_col=0)
     else:
@@ -60,6 +65,7 @@ def all_21_22_shots():
         index = 0
         for player in players_list:
             print(f'\rFetching index {index} of 714', end='')
+            # Pulls each player's season shot record, one by one
             df_pl = shotchartdetail.ShotChartDetail(team_id = player[0],
                                                             player_id = player[1],
                                                             season_type_all_star='Regular Season',
@@ -67,9 +73,10 @@ def all_21_22_shots():
                                                             context_measure_simple = 'FG3A').get_data_frames()
             time.sleep(.5)
             index += 1
+            # Combines player records with previous player records pulled
             df_shots = pd.concat([df_shots, df_pl[0]])
         df_shots.to_csv(filename)
-    # Add abs time
+    # Add in absolute time
     df_shots = get_absolute_time_shots(df_shots)
     # Reset Index
     df_shots = df_shots.reset_index(drop = True)
@@ -78,7 +85,6 @@ def all_21_22_shots():
 
 def get_absolute_time_shots(df):
     '''
-    3
     Takes in a dataframe based on 'ShotChartDetail' NBA-API endpoint and adds a column with the absolute game time, in seconds.
     '''
     # Covers overtime edge cases by having seperate function if game is in overtime (periods > 4)
@@ -100,7 +106,7 @@ def create_3pt_shot_zones(df_shots):
     high = df_all_3pt.SHOT_DISTANCE.quantile(.75)
     add = (high-low) * 1.5
     bound = high + add
-    # Create outlier dataframe for possible future analysis
+    # Create outlier dataframe for future analysis
     df_outlier_3pt = df_all_3pt[df_all_3pt.SHOT_DISTANCE > bound]
     # df with outliers removed
     df_shots = df_shots[df_shots.SHOT_DISTANCE <= bound]
@@ -112,10 +118,12 @@ def create_3pt_shot_zones(df_shots):
     kmeans.fit(X)
     clusters = kmeans.predict(X)
     df_3pt['location'] = clusters
+    # Emit a graph for funsies
     plt.figure(figsize = (12,12))
     sns.scatterplot(data =df_3pt, x='LOC_X', y = 'LOC_Y', hue = 'location')
     plt.show()
 
+    # Naming the zones and creating the column to merge back to df_shots
     df_3pt['zone'] = df_3pt['location'].map({0: 'R Above Break', 1: 'L Above Break',2:'L Below Break/Corner',3:'R Center',4:'R Below Break/Corner',5:'Center',6:'L Center'})
     zone_column = df_3pt[['zone']]
 
@@ -126,9 +134,11 @@ def create_3pt_shot_zones(df_shots):
 def acquire_shots():
     filename1 = 'all_last_season_shots_3pt_clusters.csv'
     filename2 = 'last_season_outlier_3PA.csv'
+    # Check to see if .csv is in directory - asssumes if one is, both are
     if os.path.isfile(filename1):
         df_shots =  pd.read_csv(filename1, index_col=0)
         df_outlier_3pt = pd.read_csv(filename2, index_col = 0)
+    # If no .csv, calls function to create them
     else:
         df_shots = all_21_22_shots()
         df_shots, df_outlier_3pt = create_3pt_shot_zones(df_shots)
@@ -167,7 +177,7 @@ def get_absolute_time_winprob(df):
 
 def get_player_rotation_data(game_id, player_id):
     '''
-    *SHould I indicate step somewhere in here - maybe after return 
+    Identifies the time periods, in absolute time, that the player was in a given game.  Returns a df with this data.
     '''
     # Use NBA API endpoint for Game Rotation
     df_rotation = gamerotation.GameRotation(game_id).get_data_frames()
@@ -183,22 +193,29 @@ def get_player_rotation_data(game_id, player_id):
 
     return df_player_roto_times
 
-#
-#
-# ADD FUNCTION WHICH CREATES ACTIVE TIME AND TIME SINCE REST!
-#
-#
-
 def build_player_gameline(df_player_roto_times, df_base):
     '''
-    *Remember, this is an intermediate step that is solely designed to create the features 
+    This builds the player gameline to include play time
     '''
     zipped = list(zip(df_player_roto_times.abs_in_time, df_player_roto_times.abs_out_time))
+
+    rest_time = [0]
+    for i in range(len(zipped)-1):
+        rest_time.append(zipped[i+1][0] - zipped[i][1])
+    # Create a cumulative rest
+    rest_time = list(pd.Series(rest_time).cumsum())
     # Let me create a holder dataframe as I pull slices off from the base
     df_player_game = pd.DataFrame()
+    counter = 0
     for times in zipped:
+        in_time = times[0]
         df_slice = df_base[(df_base.abs_time >= times[0]) & (df_base.abs_time <= times[1])]
+        df_slice['slice'] = counter
+        df_slice['rest'] = rest_time[counter]
+        df_slice['play_time'] = df_slice['abs_time'] - df_slice['rest']
+        df_slice['since_rest'] = df_slice['abs_time'] - in_time
         df_player_game = pd.concat([df_player_game, df_slice])
+        counter += 1
     
     return df_player_game
 
@@ -214,6 +231,9 @@ def acquire_player_game(game_id, player_id):
 # ------------------------------------------------------------------------------------------------_
 
 def get_player_game_shots(game_id, player_id, df_shots):
+    '''
+    Does something...
+    '''
     df_game_shots = df_shots[df_shots.GAME_ID == int(game_id)]
     df_game_shots = df_game_shots[df_game_shots.PLAYER_ID == player_id]
 
@@ -222,9 +242,10 @@ def get_player_game_shots(game_id, player_id, df_shots):
     return df_game_shots
 
 def id_home_team(df_game_shots):
-    teams.find_teams_by_full_name(df_game_shots.TEAM_NAME.max())[0]['abbreviation']
+    if df_game_shots.TEAM_NAME.max() == 'LA Clippers':
+        df_game_shots.TEAM_NAME = 'Los Angeles Clippers'
     df_game_shots['home'] = np.where(teams.find_teams_by_full_name(df_game_shots.TEAM_NAME.max())[0]['abbreviation'] == df_game_shots.HTM, True, False)
-
+    
     return df_game_shots
 
 def player_game(df_game_shots, df_player_game):
@@ -241,7 +262,7 @@ def player_game(df_game_shots, df_player_game):
                                     np.where(df_player_game.SHOT_MADE_FLAG == 1, 2,0),
                                     np.where(df_player_game.SHOT_MADE_FLAG == 1, 3,0))
 
-    df_player_game['points'] = df_player_game['play_points'].cumsum()
+    df_player_game['points'] = df_player_game['play_points'].cumsum() - df_player_game['play_points']
     df_player_game['shots_taken'] = df_player_game['SHOT_ATTEMPTED_FLAG'].cumsum()
     df_player_game['shots_hit'] = df_player_game['SHOT_MADE_FLAG'].cumsum()
     # Need to count the previous row's shooting percentage to not include current shot.
@@ -288,6 +309,8 @@ def clean_game(df_player_game):
         'play_points',
         'shots_taken',
         'shots_hit',
+        'slice',
+        'rest',
         'SHOT_ZONE_BASIC',
         'SHOT_ZONE_AREA',
         'SHOT_ZONE_RANGE',
@@ -338,10 +361,109 @@ def player_season_3pa(player_full_name):
     count = 1
 
     for game in game_id_list:
-        print(f'\rLoading game {count} of {len(game_id_list)}', end='')
-        df_game = acquire_player_game_target(game, player_id, df_shots)
-        df_player_season = pd.concat([df_player_season,df_game])  
-        count += 1
-        time.sleep(.5)
+        print(f'\rLoading game {count} of {len(game_id_list)} for {player_full_name} in 2021-2022 Regular Season', end='')
+        try:
+            df_game = acquire_player_game_target(game, player_id, df_shots)
+            df_player_season = pd.concat([df_player_season,df_game])  
+            count += 1
+            time.sleep(.5)
+        except:
+            print(f'\nLoad of game {count} for {player_full_name} failed.\n')
+            continue
+
+    df_player_season.reset_index(drop = True, inplace = True)
 
     return df_player_season
+
+def the_tome():
+    df_shots, df_outlier_3pt = acquire_shots()
+
+    player_id_list = df_shots.PLAYER_ID.unique()
+    player_name_list = df_shots.PLAYER_NAME.unique()
+    player_tuple = list(zip(player_id_list, player_name_list))
+
+    if os.path.isfile('in_progress_tome.csv'):
+        df_league_3pa =  pd.read_csv('in_progress_tome.csv', index_col=0)
+    else:
+        df_league_3pa = pd.DataFrame()
+
+    player_count = 1
+
+    for player in player_tuple:
+        game_id_list = df_shots[df_shots.PLAYER_ID == player[0]].GAME_ID.unique()
+    
+        game_id_list = [f'00{n}' for n in game_id_list]
+         
+        df_player_season = pd.DataFrame()
+
+        game_count = 1
+
+        error_count = 0
+
+        for game in game_id_list:
+            print(f'\rLoading game {game_count} of {len(game_id_list)} for {player[1]} (player {player_count} of 596) in 2021-2022 Regular Season.                    ', end='')
+            try:
+                df_game = acquire_player_game_target(game, player[0], df_shots)
+                df_player_season = pd.concat([df_player_season,df_game])  
+                game_count += 1
+                time.sleep(.5)
+            except KeyboardInterrupt:
+                print(f'\nLoad of game {game_count} for {player[1]} failed.\n')
+                print('Keyboard Interrupt')
+                return df_league_3pa
+            except:
+                print(f'\nLoad of game {game_count} for {player[1]} failed.\n')
+                time.sleep(5)
+                game_count += 1
+                error_count += 1
+                if error_count == 5:
+                    print("Too many failures.  Stopping download.")
+                    return df_league_3pa
+                continue
+
+        df_player_season.reset_index(drop = True, inplace = True)
+
+        df_league_3pa = pd.concat([df_league_3pa, df_player_season]) 
+
+        df_league_3pa.to_csv('in_progress_tome.csv')
+
+        player_count += 1
+    
+    df_league_3pa.reset_index(drop = True, inplace = True)
+
+    return df_league_3pa
+
+def get_tome():
+    filename = 'league_3pa.csv'
+    if os.path.isfile(filename):
+        df_league_3pa =  pd.read_csv(filename, index_col=0)
+    else:
+        df_league_3pa = the_tome()
+        df_league_3pa.to_csv(filename)
+    
+    return df_league_3pa
+
+def tome_prep():
+    df = get_tome()
+    df = df.drop_duplicates(subset = ['game_id','player_id','period','shot_result','loc_x','loc_y'])
+    df = df.drop(columns = ['win_prob','fg_type'])
+    df = df[['player',
+            'player_id',
+            'team',
+            'team_id',
+            'game_id',
+            'home',
+            'period',
+            'abs_time',
+            'play_time',
+            'since_rest',
+            'loc_x',
+            'loc_y',
+            'zone',
+            'shot_type',
+            'score_margin',
+            'points',
+            'fg_pct',      
+            'shot_result']]
+    
+    return df
