@@ -262,7 +262,7 @@ def player_game(df_game_shots, df_player_game):
                                     np.where(df_player_game.SHOT_MADE_FLAG == 1, 2,0),
                                     np.where(df_player_game.SHOT_MADE_FLAG == 1, 3,0))
 
-    df_player_game['points'] = df_player_game['play_points'].cumsum() - df_player_game['play_points'] #!#! This is new and should reset points to points going into the shot
+    df_player_game['points'] = df_player_game['play_points'].cumsum() - df_player_game['play_points']
     df_player_game['shots_taken'] = df_player_game['SHOT_ATTEMPTED_FLAG'].cumsum()
     df_player_game['shots_hit'] = df_player_game['SHOT_MADE_FLAG'].cumsum()
     # Need to count the previous row's shooting percentage to not include current shot.
@@ -461,9 +461,10 @@ def tome_prep():
             'loc_y',
             'zone',
             'shot_type',
+            'score_margin',
             'points',
-            'fg_pct',
-            'score_margin',   
+            'fg_pct',     
             'shot_result']]
+    df['points'] = np.where(df.shot_result == 'Made Shot', df.points - 3, df.points)
     
     return df
