@@ -446,7 +446,7 @@ def get_tome():
 def tome_prep():
     df = get_tome()
     df = df.drop_duplicates(subset = ['game_id','player_id','period','shot_result','loc_x','loc_y'])
-    df = df.drop(columns = ['win_prob','fg_type'])
+    df = df.drop(columns = ['win_prob','fg_type','fg_pct'])
     df = df[['player',
             'player_id',
             'team',
@@ -462,8 +462,7 @@ def tome_prep():
             'zone',
             'shot_type',
             'score_margin',
-            'points',
-            'fg_pct',     
+            'points',    
             'shot_result']]
     df['points'] = np.where(df.shot_result == 'Made Shot', df.points - 3, df.points)
     
