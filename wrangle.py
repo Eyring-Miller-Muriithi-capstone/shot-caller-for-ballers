@@ -1,7 +1,5 @@
 import pandas as pd
 import numpy as np
-from re import T
-import json
 import sklearn.metrics as metrics
 from itertools import product
 
@@ -9,23 +7,21 @@ from acquire import tome_prep
 from acquire import acquire_shots
 
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
-from sklearn.ensemble import BaggingClassifier
 from sklearn.preprocessing import MinMaxScaler
 
 
-# -----
+# ------------------------------------------------------------------------------------------------
 # Pre-Wrangle Functions
-# -----
+# ------------------------------------------------------------------------------------------------
 
 def game_shots(df):
+    '''
+    Creates a running total of each 3-point attempt and result for each player, for each game they play
+    '''
     # Initialize game_id with the first player-game indexed in the dataframe
     game_id = 22100014
 
-    # Need this to reset games counter
+    # Need their player_id as well to reset games_counter below
     player_id = 203992
 
     # Create lists to hold the running counts per player-game - these will become the columns
@@ -49,14 +45,19 @@ def game_shots(df):
             if df.player_id[row] != player_id:
                 counter_games_played = 0
                 player_id = df.player_id[row]
+            # Else, player is not new, and they are playing the next game
             else:
                 counter_games_played += 1
+        # Make or miss the attempt counter goes up one
         counter_3pa += 1
+        # If they make the shot, increase the made counter
         if df['shot_result'][row] == 'Made Shot':
             counter_3pm += 1
+        # Append the holder lists
         games_counter.append(counter_games_played)
         count_hold_3pm.append(counter_3pm)
         count_hold_3pa.append(counter_3pa)
+        # Set the game_id for next loop comparison
         game_id = df.game_id[row]
 
     df['games_played'] = games_counter
@@ -67,6 +68,9 @@ def game_shots(df):
     return df
 
 def season_shots(df):
+    '''
+    Create cumulative 3 point shot information columns for each player-season
+    '''
     # Initialize game_id with the first player-game indexed in the dataframe
     player_id = 203992
 
@@ -98,7 +102,10 @@ def season_shots(df):
     return df
 
 def create_metrics(df):
-
+    '''
+    Using the new 3 point shot columns create above, we can create player metrics,
+     from the basic 3pt pecentage, to more complex metrics.
+    '''
     # Simple 3pt percentage
     df['cum_3pct'] = df.cum_3pm/df.cum_3pa
 
@@ -114,35 +121,43 @@ def create_metrics(df):
 
     return df
 
-def create_location(df):
+def create_distance(df):
     '''
+    Brings back the distance column using pythagorean math, and is more accurate than original
     '''
-    df['location'] = ((df.loc_x/10)**2 + (df.loc_y/10)**2)**(1/2)
+    df['distance'] = ((df.loc_x/10)**2 + (df.loc_y/10)**2)**(1/2)
 
     return df
 
 def create_game_event(df):
+    '''
+    Brings back GAME_EVENT_ID as game_event_id, needed for Tableau graphics
+    '''
+    # Get an original GAME_EVENT_ID column from acquire shots, then reduce the df down to it and join target columns
     df_shots, df_outlier_3pt = acquire_shots()
     game_events = df_shots[['GAME_ID','abs_time','GAME_EVENT_ID']]
 
+    # Merge on the target columns
     df = df.merge(game_events, how = 'inner', left_on = ('game_id','abs_time'), right_on = ('GAME_ID','abs_time'))
 
+    # Drops and renames
     df.drop(columns = 'GAME_ID', inplace = True)
-
     df.rename(columns = {'GAME_EVENT_ID':'game_event_id'}, inplace = True)
 
+    # Since we have it, returns df_outlier_3pt
     return df, df_outlier_3pt
 
 def encoder(train, validate, test):
     '''
+    Encodes categoricals
     '''
-    # Encode target
+    # Encode target for each subset
     train['shot_made_flag'] = np.where(train.shot_result == 'Made Shot',1,0)
     validate['shot_made_flag'] = np.where(validate.shot_result == 'Made Shot',1,0)
     test['shot_made_flag'] = np.where(test.shot_result == 'Made Shot',1,0)
 
     # Encode these columns
-    encode_cols = ['home','zone','shot_type']
+    encode_cols = ['home','zone','shot_type','period']
 
     train_encoded = pd.get_dummies(train, columns = encode_cols)
     validate_encoded = pd.get_dummies(validate, columns = encode_cols)
@@ -150,29 +165,40 @@ def encoder(train, validate, test):
 
     return train_encoded, validate_encoded, test_encoded
 
-def pre_wrangle_prep():
+def wrangle_prep():
+    '''
+    Combines all wrangle functions together.  Done before bivariate EDA and modeling.
+    Returns the original dataframe, the outlier 3pt shots (for reference), an unencoded but split X_train_exp
+    for analysis, and encoded and scaled X and y for train, validate and test sets.
+    '''
+    # Acquires the dataset
     df = tome_prep()
+    # Prep and modify
     df = game_shots(df)
     df = season_shots(df)
     df = create_metrics(df)
-    df = create_location(df)
+    df = create_distance(df)
     df , df_outlier_3pt = create_game_event(df)
+    # Split (stratify on target = 'shot_result')
     train, validate, test = splitter(df, target = 'shot_result')
+    # Breaks out X_train, with categoricals unencoded
     X_train_exp = train
+    # Encode cats, scale numericals, and then seperate into X and y
     train, validate, test = encoder(train, validate,test)
     train_scaled, validate_scaled, test_scaled = scaling_minmax(train, validate, test)
     X_train, y_train, X_validate, y_validate, X_test, y_test = seperate_X_y(train_scaled, validate_scaled, test_scaled) 
 
     return df, df_outlier_3pt, X_train_exp, X_train, y_train, X_validate, y_validate, X_test, y_test
 
-# -----
+# ------------------------------------------------------------------------------------------------
 # Supporting Functions
-# -----
+# ------------------------------------------------------------------------------------------------
 
 def scaling_minmax(train, validate, test):
 
     '''
-    This function takes in a data set that is split , makes a copy and uses the min max scaler to scale all three data sets. additionally it adds the columns names on the scaled data and returns trainedscaled data, validate scaled data and test scale
+    This function takes in a data set that is split, makes a copy and uses the min max scaler to scale all three data sets.
+    Additionally it adds the columns names on the scaled data and returns trained scaled data, validate scaled data and test scale data.
     '''
     # Columns to scale - only those with values that range greater than 0-10ish
     columns_to_scale = ['abs_time', 'play_time', 'since_rest', 'loc_x', 'loc_y', 'score_margin','points','cum_3pa', 'cum_3pm', 'cum_3miss','location']
@@ -207,7 +233,7 @@ def seperate_X_y(train_scaled, validate_scaled, test_scaled):
 
     X_drop_columns_list = ['player', 'player_id', 'team', 'team_id', 'game_id','loc_x', 'loc_y','shot_result',
                         'games_played', 'game_3pa', 'game_3pm', 'game_3miss', 'cum_3pa', 'cum_3pm', 'cum_3miss',
-                        'location', 'game_event_id', 'shot_made_flag','tm_v1','tm_v3']
+                        'game_event_id', 'shot_made_flag','tm_v1','tm_v3']
 
     X_train = train_scaled.drop(columns = X_drop_columns_list)
     y_train = train_scaled[target]
@@ -224,7 +250,7 @@ def splitter(df, target = 'None', train_split_1 = .8, train_split_2 = .7, random
     '''
     Splits a dataset into train, validate and test dataframes.
     Optional target, with default splits of 56% 'Train' (80% * 70%), 20% 'Test', 24% Validate (80% * 30%)
-    Defailt random seed/state of 123
+    Default random seed/state of 123
     '''
     if target == 'None':
         train, test = train_test_split(df, train_size = train_split_1, random_state = random_state)
@@ -236,4 +262,4 @@ def splitter(df, target = 'None', train_split_1 = .8, train_split_2 = .7, random
         train, test = train_test_split(df, train_size = train_split_1, random_state = random_state, stratify = df[target])
         train, validate = train_test_split(train, train_size = train_split_2, random_state = random_state, stratify = train[target])
         print(f'Train = {train.shape[0]} rows ({100*(train_split_1*train_split_2):.1f}%) | Validate = {validate.shape[0]} rows ({100*(train_split_1*(1-train_split_2)):.1f}%) | Test = {test.shape[0]} rows ({100*(1-train_split_1):.1f}%)')
-        return train, validate, test
+        return train, validate, test  
