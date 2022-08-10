@@ -11,7 +11,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 # ------------------------------------------------------------------------------------------------
-# Pre-Wrangle Functions
+# Processing Functions
 # ------------------------------------------------------------------------------------------------
 
 def game_shots(df):
@@ -201,7 +201,7 @@ def scaling_minmax(train, validate, test):
     Additionally it adds the columns names on the scaled data and returns trained scaled data, validate scaled data and test scale data.
     '''
     # Columns to scale - only those with values that range greater than 0-10ish
-    columns_to_scale = ['abs_time', 'play_time', 'since_rest', 'loc_x', 'loc_y', 'score_margin','points','cum_3pa', 'cum_3pm', 'cum_3miss','location']
+    columns_to_scale = ['abs_time', 'play_time', 'since_rest', 'loc_x', 'loc_y', 'score_margin','points','cum_3pa', 'cum_3pm', 'cum_3miss','distance']
     #copying the dataframes for distinguishing between scaled and unscaled data
     train_scaled = train.copy()
     validate_scaled = validate.copy()
