@@ -127,3 +127,101 @@ def chi_square_test(col1, col2):
         print("Fail to reject the null")
         print("Insufficient evidence to reject the null")
     p
+    
+    
+#############################  EDA   ####################################
+import itertools
+df, df_outlier_3pt, X_train_exp, X_train, y_train, X_validate, y_validate, X_test, y_test = wrangle.pre_wrangle_prep()
+
+def plot_categorical():
+    """this finction creates a bin for time since rest and plots the significant categorical features"""
+    X_train_exp['rest_bin'] = pd.cut(X_train_exp.since_rest,[0,250,500,750,1000,2000,3000])
+    cat_cols = X_train_exp[['shot_type','team','zone','rest_bin']]
+    for i, predictor in enumerate(cat_cols):
+        plt.figure(i)
+        plot= sns.countplot(data=X_train_exp, x=predictor, hue='shot_made_flag')
+#         sns.set(rc={'figure.figsize':(17.7,8.27)})
+        plt.setp(plot.get_xticklabels(), rotation=90) 
+        sns.set(rc={'figure.figsize':(17.7,8.27)})
+
+    return plot
+
+def team_df():
+    """"This function creates dataframes for certain teams for eda purposes"""
+    dallas = X_train_exp[X_train_exp['team']=="Dallas Mavericks"]
+    miami =  X_train_exp[X_train_exp['team']=="Miami Heat"]
+    boston = X_train_exp[X_train_exp['team']=="Boston Celtics"]
+    golden_state = X_train_exp[X_train_exp['team'] =='Golden State Warriors']
+    detroit = X_train_exp[X_train_exp['team'] =='Detroit Pistons']
+    orlando = X_train_exp[X_train_exp['team'] =='Orlando Magic']
+    oklahoma = X_train_exp[X_train_exp['team'] =='Oklahoma City Thunder']
+    san_antonio = X_train_exp[X_train_exp['team'] =='San Antonio Spurs']
+    return dallas, miami,boston, golden_state,detroit,orlando,oklahoma, san_antonio
+
+def plot_curry_bros():
+    """this function creates dataframes for two tier one players and charts comparisons"""
+    # player dfs
+    steph_curry = X_train_exp[X_train_exp['player']=="Stephen Curry"]
+    seth_curry = X_train_exp[X_train_exp['player']== "Seth Curry"]
+
+    # steph_curry shots
+    fig, axes = plt.subplots(1, 2, figsize=(15, 5), sharex=True)
+    fig.suptitle('Steph Shots')
+    chart_steph = sns.countplot(ax = axes[0], data = steph_curry, x=steph_curry.zone, hue =steph_curry.shot_made_flag )
+    axes[0].set_title('Steph')
+    chart_steph.set_xticklabels(chart_steph.get_xticklabels(), rotation=90)
+    # chart_steph = sns.countplot(ax=axes[1], x=miami.zone)
+
+    # seth curry shots
+    fig.suptitle("Seth Shots")
+    seth_curry = sns.countplot(data = seth_curry, x=seth_curry.zone, hue =seth_curry.shot_made_flag)
+    axes[1].set_title('Seth')
+    seth_curry.set_xticklabels(seth_curry.get_xticklabels(), rotation=90)
+
+def shot_zone_comparison():
+    """this function charts and compares four of the best teams and 4 regular season teams """
+    dallas, miami,boston, golden_state,detroit,orlando,oklahoma, san_antonio = team_df()
+        # Shot Comparison Best 4 Teams
+    # dallas
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5), sharex=True)
+    palette = itertools.cycle(sns.color_palette())
+    fig.suptitle('Shot Comparison Best 3 Teams')
+    chart1 = sns.countplot(ax=axes[0], x=dallas.zone)
+    axes[0].set_title('Dallas')
+
+    chart1.set_xticklabels(chart1.get_xticklabels(), rotation=90)
+    c= next(palette)
+
+#     #miami
+#     chart2 = sns.countplot(ax=axes[1], x=miami.zone)
+#     axes[1].set_title('Miami')
+#     chart2.set_xticklabels(chart2.get_xticklabels(), rotation=90)
+    # gsw
+    chart3 = sns.countplot(ax=axes[1], x=golden_state.zone)
+    axes[1].set_title('Golden State')
+    chart3.set_xticklabels(chart3.get_xticklabels(), rotation=90)
+
+    #boston
+    chart4 = sns.countplot(ax=axes[2], x=boston.zone)
+    axes[2].set_title('Boston')
+    chart4.set_xticklabels(chart4.get_xticklabels(), rotation=90)
+
+            # Shot Comparison Worst 4 Teams
+    # detroit
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5), sharex=True)
+    fig.suptitle('Shot Comparison of 3 Regular Teams')
+    chart1 = sns.countplot(ax=axes[0], x=detroit.zone)
+    axes[0].set_title('Detroit')
+    chart1.set_xticklabels(chart1.get_xticklabels(), rotation=90)
+
+    #orlando
+    chart2 = sns.countplot(ax=axes[1], x=orlando.zone)
+    axes[1].set_title('Orlando')
+    chart2.set_xticklabels(chart2.get_xticklabels(), rotation=90)
+
+
+    #san antonio
+    chart4 = sns.countplot(ax=axes[2], x=san_antonio.zone)
+    axes[2].set_title('San Antonio')
+    chart4.set_xticklabels(chart4.get_xticklabels(), rotation=90)
+    return plt
