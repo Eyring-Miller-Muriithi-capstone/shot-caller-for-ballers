@@ -1,3 +1,7 @@
+'''
+Processing functions which compute and add features, splits the dataset, encodes categoricals,
+scales numerics and seperates into target and features.
+'''
 import pandas as pd
 import numpy as np
 import sklearn.metrics as metrics
@@ -88,7 +92,9 @@ def season_shots(df):
         if df.player_id[row] != player_id:
             counter_3pm = 0
             counter_3pa = 0
+        # Add 1 to attempts counter
         counter_3pa += 1
+        # If shot made, add one to made counter
         if df['shot_result'][row] == 'Made Shot':
             counter_3pm += 1
         to_date_season_3pm_hold.append(counter_3pm)
@@ -156,14 +162,18 @@ def encoder(train, validate, test):
     validate['shot_made_flag'] = np.where(validate.shot_result == 'Made Shot',1,0)
     test['shot_made_flag'] = np.where(test.shot_result == 'Made Shot',1,0)
 
+    # Get X-train_exp before encoding
+    X_train_exp = train.copy()
+
     # Encode these columns
     encode_cols = ['home','zone','shot_type','period']
 
+    # Encoding
     train_encoded = pd.get_dummies(train, columns = encode_cols)
     validate_encoded = pd.get_dummies(validate, columns = encode_cols)
     test_encoded = pd.get_dummies(test, columns = encode_cols)
 
-    return train_encoded, validate_encoded, test_encoded
+    return X_train_exp, train_encoded, validate_encoded, test_encoded
 
 def wrangle_prep():
     '''
@@ -179,12 +189,44 @@ def wrangle_prep():
     df = create_metrics(df)
     df = create_distance(df)
     df , df_outlier_3pt = create_game_event(df)
+    # Drop shot type becauase it is not helpful and causes all sorts of problems!
+    dfa = df.copy()
+    dfa.drop(columns = 'shot_type')
     # Split (stratify on target = 'shot_result')
-    train, validate, test = splitter(df, target = 'shot_result')
+    train, validate, test = splitter(dfa, target = 'shot_result')
     # Breaks out X_train, with categoricals unencoded
     X_train_exp = train
     # Encode cats, scale numericals, and then seperate into X and y
-    train, validate, test = encoder(train, validate,test)
+    X_train_exp, train, validate, test = encoder(train, validate,test)
+    train_scaled, validate_scaled, test_scaled = scaling_minmax(train, validate, test)
+    X_train, y_train, X_validate, y_validate, X_test, y_test = seperate_X_y(train_scaled, validate_scaled, test_scaled) 
+
+    return df, df_outlier_3pt, X_train_exp, X_train, y_train, X_validate, y_validate, X_test, y_test
+
+def wrangle_prep_player(player_id):
+    '''
+    Combines all wrangle functions together for a single.  Done before bivariate EDA and modeling.
+    Returns the original dataframe, the outlier 3pt shots (for reference), an unencoded but split X_train_exp
+    for analysis, and encoded and scaled X and y for train, validate and test sets.
+    '''
+    # Acquires the dataset
+    df = tome_prep()
+    # Prep and modify
+    df = game_shots(df)
+    df = season_shots(df)
+    df = create_metrics(df)
+    df = create_distance(df)
+    df , df_outlier_3pt = create_game_event(df)
+    df = df[df.player_id == player_id]
+    # Drop shot type becauase it is not helpful and causes all sorts of problems!
+    dfa = df.copy()
+    dfa.drop(columns = 'shot_type')
+    # Split (stratify on target = 'shot_result')
+    train, validate, test = splitter(dfa, target = 'shot_result')
+    # Breaks out X_train, with categoricals unencoded
+    X_train_exp = train
+    # Encode cats, scale numericals, and then seperate into X and y
+    X_train_exp, train, validate, test = encoder(train, validate,test)
     train_scaled, validate_scaled, test_scaled = scaling_minmax(train, validate, test)
     X_train, y_train, X_validate, y_validate, X_test, y_test = seperate_X_y(train_scaled, validate_scaled, test_scaled) 
 
@@ -195,7 +237,6 @@ def wrangle_prep():
 # ------------------------------------------------------------------------------------------------
 
 def scaling_minmax(train, validate, test):
-
     '''
     This function takes in a data set that is split, makes a copy and uses the min max scaler to scale all three data sets.
     Additionally it adds the columns names on the scaled data and returns trained scaled data, validate scaled data and test scale data.
@@ -227,21 +268,39 @@ def scaling_minmax(train, validate, test):
 
 def seperate_X_y(train_scaled, validate_scaled, test_scaled):
     '''
+    Takes in scaled and split data and seperates it into X and y for modeling purposes.
     '''
-    
+    # ID target
     target = 'shot_result'
 
-    X_drop_columns_list = ['player', 'player_id', 'team', 'team_id', 'game_id','loc_x', 'loc_y','shot_result',
-                        'games_played', 'game_3pa', 'game_3pm', 'game_3miss', 'cum_3pa', 'cum_3pm', 'cum_3miss',
-                        'game_event_id', 'shot_made_flag','tm_v1','tm_v3']
+    # Id initial columns to drop (additional columns may be dropped in the modeling process )
+    # X_drop_columns_list = ['player', 'player_id', 'team', 'team_id', 'game_id','loc_x', 'loc_y','shot_result',
+    #                     'game_3pa', 'game_3pm', 'game_3miss', 'cum_3pa', 'cum_3pm', 'cum_3miss','cum_3pct',
+    #                     'game_event_id', 'shot_made_flag','tm_v1','tm_v3', 'home_False', 'home_True','period_1',
+    #                     'period_2','period_3','period_5','period_6','period_7',
+    #                     'shot_type_Driving Floating Jump Shot', 'shot_type_Fadeaway Jump Shot',
+    #                     'shot_type_Floating Jump shot', 'shot_type_Jump Bank Shot',
+    #                     'shot_type_Jump Shot', 'shot_type_Pullup Jump shot',
+    #                     'shot_type_Running Jump Shot', 'shot_type_Running Pull-Up Jump Shot',
+    #                     'shot_type_Step Back Bank Jump Shot', 'shot_type_Step Back Jump shot',
+    #                     'shot_type_Turnaround Fadeaway Bank Jump Shot',
+    #                     'shot_type_Turnaround Fadeaway shot', 'shot_type_Turnaround Jump Shot']
+    
+    # Replaced columns to drop with columns to keep - not some may be dropped in modeling
+    X_columns_to_keep = ['abs_time', 'play_time', 'since_rest', 'score_margin', 'points',
+       'games_played', 'tm_v2', 'distance', 'zone_Center',
+       'zone_L Above Break', 'zone_L Below Break/Corner', 'zone_L Center',
+       'zone_R Above Break', 'zone_R Below Break/Corner', 'zone_R Center',
+       'period_4']
 
-    X_train = train_scaled.drop(columns = X_drop_columns_list)
+    # Train, validate and test
+    X_train = train_scaled[X_columns_to_keep]
     y_train = train_scaled[target]
 
-    X_validate = validate_scaled.drop(columns = X_drop_columns_list)
+    X_validate = validate_scaled[X_columns_to_keep]
     y_validate = validate_scaled[target]
 
-    X_test = test_scaled.drop(columns = X_drop_columns_list)
+    X_test = test_scaled[X_columns_to_keep]
     y_test = test_scaled[target]
 
     return X_train, y_train, X_validate, y_validate, X_test, y_test
@@ -252,6 +311,7 @@ def splitter(df, target = 'None', train_split_1 = .8, train_split_2 = .7, random
     Optional target, with default splits of 56% 'Train' (80% * 70%), 20% 'Test', 24% Validate (80% * 30%)
     Default random seed/state of 123
     '''
+    # Target is what to stratify on
     if target == 'None':
         train, test = train_test_split(df, train_size = train_split_1, random_state = random_state)
         train, validate = train_test_split(train, train_size = train_split_2, random_state = random_state)
