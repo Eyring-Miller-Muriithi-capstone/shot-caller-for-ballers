@@ -243,8 +243,9 @@ def seperate_X_y(train_scaled, validate_scaled, test_scaled):
 
     # Id initial columns to drop (additional columns may be dropped in the modeling process )
     X_drop_columns_list = ['player', 'player_id', 'team', 'team_id', 'game_id','loc_x', 'loc_y','shot_result',
-                        'games_played', 'game_3pa', 'game_3pm', 'game_3miss', 'cum_3pa', 'cum_3pm', 'cum_3miss',
-                        'game_event_id', 'shot_made_flag','tm_v1','tm_v3']
+                        'game_3pa', 'game_3pm', 'game_3miss', 'cum_3pa', 'cum_3pm', 'cum_3miss','cum_3pct'
+                        'game_event_id', 'shot_made_flag','tm_v1','tm_v3', 'home_False', 'home_True','period_1',
+                        'period_2','period_3','period_5','period_6','period_7']
 
     # Train, validate and test
     X_train = train_scaled.drop(columns = X_drop_columns_list)
