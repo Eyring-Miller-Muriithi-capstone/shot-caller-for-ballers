@@ -129,14 +129,13 @@ def chi_square_test(col1, col2):
     p
     
     
-#############################  EDA   ####################################
 import itertools
 df, df_outlier_3pt, X_train_exp, X_train, y_train, X_validate, y_validate, X_test, y_test = wrangle.pre_wrangle_prep()
 
 def plot_categorical():
     """this finction creates a bin for time since rest and plots the significant categorical features"""
     X_train_exp['rest_bin'] = pd.cut(X_train_exp.since_rest,[0,250,500,750,1000,2000,3000])
-    cat_cols = X_train_exp[['shot_type','team','zone','rest_bin']]
+    cat_cols = X_train_exp[['team','shot_type','zone','rest_bin']]
     for i, predictor in enumerate(cat_cols):
         plt.figure(i)
         plot= sns.countplot(data=X_train_exp, x=predictor, hue='shot_made_flag')
@@ -147,7 +146,7 @@ def plot_categorical():
     return plot
 
 def team_df():
-    """"This function creates dataframes for certain teams for eda purposes"""
+    """this function creates dataframes for selected teams for eda purposes"""
     dallas = X_train_exp[X_train_exp['team']=="Dallas Mavericks"]
     miami =  X_train_exp[X_train_exp['team']=="Miami Heat"]
     boston = X_train_exp[X_train_exp['team']=="Boston Celtics"]
@@ -178,8 +177,17 @@ def plot_curry_bros():
     axes[1].set_title('Seth')
     seth_curry.set_xticklabels(seth_curry.get_xticklabels(), rotation=90)
 
+def plot_numerical_made():
+    """this function plots numerical features with relationship to the players time since rest"""
+    numerics = X_train_exp[['score_margin','cum_3pa','points','tm_v1', 'tm_v2', 'tm_v3']]
+    for i, predictor in enumerate(numerics):
+        plt.figure(i)
+        plot= sns.lmplot(data=X_train_exp.sample(900), y=predictor, x='since_rest')#, hue = 'shot_made_flag')
+        sns.set(rc={'figure.figsize':(17.7,8.27)})
+    return plot
+
 def shot_zone_comparison():
-    """this function charts and compares four of the best teams and 4 regular season teams """
+    """this function charts and compares zon shots among four of the best teams and 4 regular season teams """
     dallas, miami,boston, golden_state,detroit,orlando,oklahoma, san_antonio = team_df()
         # Shot Comparison Best 4 Teams
     # dallas
