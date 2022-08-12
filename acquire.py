@@ -1,11 +1,19 @@
+'''
+These functions drive the complicated process of calling multiple NBA statistical endpoints
+using an open source program called NBA-API.
+It is encapsulated in a single function, tome_prep(), which emits a dataframe ready for further pre-processing.
+'''
+# DS Libraries
 import pandas as pd
 import numpy as np
 import os
 import time
 
+# Plotting Functions
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# NBA-API Endpoint Analyzers
 from nba_api.stats.static import teams
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import gamerotation
@@ -13,6 +21,7 @@ from nba_api.stats.endpoints import shotchartdetail
 from nba_api.stats.endpoints import teamplayerdashboard
 from nba_api.stats.endpoints import winprobabilitypbp
 
+# For clustering
 from sklearn.cluster import KMeans
 
 # ------------------------------------------------------------------------------------------------
@@ -111,7 +120,7 @@ def create_3pt_shot_zones(df_shots):
     # df with outliers removed
     df_shots = df_shots[df_shots.SHOT_DISTANCE <= bound]
 
-    # Create the clusters - ***Create sub functions for all these components
+    # Create the clusters
     df_3pt = df_all_3pt[df_all_3pt.SHOT_DISTANCE <= bound]
     X = df_3pt[['LOC_X','LOC_Y']]
     kmeans = KMeans(n_clusters=7)
@@ -266,7 +275,7 @@ def id_home_team(df_game_shots):
 
 def player_game(df_game_shots, df_player_game):
     '''
-    Merges shots with their second by second stats
+    Merges a player's shots with their second-by-second stats
     '''
     # Merge on absolute time, remove all home vs visitor columns and make them team focused
     df_player_game = df_player_game.merge(df_game_shots, how = 'inner', on = 'abs_time')
@@ -408,7 +417,8 @@ def player_season_3pa(player_full_name):
             # When it fails, capture the spot for restarting
             print(f'\nLoad of game {count} for {player_full_name} failed.\n')
             continue
-
+    
+    # Dataframe for a player-season
     df_player_season.reset_index(drop = True, inplace = True)
 
     return df_player_season
@@ -419,8 +429,10 @@ def the_tome():
     for the 2021-2022 regular season.
     Caches to an in_process_tome so as to not lose data on restarts.
     '''
+    # Acquire all 3pt shots for the season
     df_shots, df_outlier_3pt = acquire_shots()
 
+    # Need player names and ids zipped into a list of tuples
     player_id_list = df_shots.PLAYER_ID.unique()
     player_name_list = df_shots.PLAYER_NAME.unique()
     player_tuple = list(zip(player_id_list, player_name_list))
@@ -522,6 +534,7 @@ def tome_prep():
             'score_margin',
             'points',    
             'shot_result']]
+    # Correcting for mistake in earlier scraping code to remove the shot value itself from the player's points
     df['points'] = np.where(df.shot_result == 'Made Shot', df.points - 3, df.points)
     
     return df

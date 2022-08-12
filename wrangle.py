@@ -1,3 +1,7 @@
+'''
+Processing functions which compute and add features, splits the dataset, encodes categoricals,
+scales numerics and seperates into target and features.
+'''
 import pandas as pd
 import numpy as np
 import sklearn.metrics as metrics
@@ -88,7 +92,9 @@ def season_shots(df):
         if df.player_id[row] != player_id:
             counter_3pm = 0
             counter_3pa = 0
+        # Add 1 to attempts counter
         counter_3pa += 1
+        # If shot made, add one to made counter
         if df['shot_result'][row] == 'Made Shot':
             counter_3pm += 1
         to_date_season_3pm_hold.append(counter_3pm)
@@ -156,14 +162,18 @@ def encoder(train, validate, test):
     validate['shot_made_flag'] = np.where(validate.shot_result == 'Made Shot',1,0)
     test['shot_made_flag'] = np.where(test.shot_result == 'Made Shot',1,0)
 
+    # Get X-train_exp before encoding
+    X_train_exp = train.copy()
+
     # Encode these columns
     encode_cols = ['home','zone','shot_type','period']
 
+    # Encoding
     train_encoded = pd.get_dummies(train, columns = encode_cols)
     validate_encoded = pd.get_dummies(validate, columns = encode_cols)
     test_encoded = pd.get_dummies(test, columns = encode_cols)
 
-    return train_encoded, validate_encoded, test_encoded
+    return X_train_exp, train_encoded, validate_encoded, test_encoded
 
 def wrangle_prep():
     '''
@@ -184,7 +194,7 @@ def wrangle_prep():
     # Breaks out X_train, with categoricals unencoded
     X_train_exp = train
     # Encode cats, scale numericals, and then seperate into X and y
-    train, validate, test = encoder(train, validate,test)
+    X_train_exp, train, validate, test = encoder(train, validate,test)
     train_scaled, validate_scaled, test_scaled = scaling_minmax(train, validate, test)
     X_train, y_train, X_validate, y_validate, X_test, y_test = seperate_X_y(train_scaled, validate_scaled, test_scaled) 
 
@@ -195,7 +205,6 @@ def wrangle_prep():
 # ------------------------------------------------------------------------------------------------
 
 def scaling_minmax(train, validate, test):
-
     '''
     This function takes in a data set that is split, makes a copy and uses the min max scaler to scale all three data sets.
     Additionally it adds the columns names on the scaled data and returns trained scaled data, validate scaled data and test scale data.
@@ -227,14 +236,17 @@ def scaling_minmax(train, validate, test):
 
 def seperate_X_y(train_scaled, validate_scaled, test_scaled):
     '''
+    Takes in scaled and split data and seperates it into X and y for modeling purposes.
     '''
-    
+    # ID target
     target = 'shot_result'
 
+    # Id initial columns to drop (additional columns may be dropped in the modeling process )
     X_drop_columns_list = ['player', 'player_id', 'team', 'team_id', 'game_id','loc_x', 'loc_y','shot_result',
                         'games_played', 'game_3pa', 'game_3pm', 'game_3miss', 'cum_3pa', 'cum_3pm', 'cum_3miss',
                         'game_event_id', 'shot_made_flag','tm_v1','tm_v3']
 
+    # Train, validate and test
     X_train = train_scaled.drop(columns = X_drop_columns_list)
     y_train = train_scaled[target]
 
@@ -252,6 +264,7 @@ def splitter(df, target = 'None', train_split_1 = .8, train_split_2 = .7, random
     Optional target, with default splits of 56% 'Train' (80% * 70%), 20% 'Test', 24% Validate (80% * 30%)
     Default random seed/state of 123
     '''
+    # Target is what to stratify on
     if target == 'None':
         train, test = train_test_split(df, train_size = train_split_1, random_state = random_state)
         train, validate = train_test_split(train, train_size = train_split_2, random_state = random_state)
