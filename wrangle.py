@@ -189,8 +189,40 @@ def wrangle_prep():
     df = create_metrics(df)
     df = create_distance(df)
     df , df_outlier_3pt = create_game_event(df)
+    # Drop shot type becauase it is not helpful and causes all sorts of problems!
+    dfa = df.copy()
+    dfa.drop(columns = 'shot_type')
     # Split (stratify on target = 'shot_result')
-    train, validate, test = splitter(df, target = 'shot_result')
+    train, validate, test = splitter(dfa, target = 'shot_result')
+    # Breaks out X_train, with categoricals unencoded
+    X_train_exp = train
+    # Encode cats, scale numericals, and then seperate into X and y
+    X_train_exp, train, validate, test = encoder(train, validate,test)
+    train_scaled, validate_scaled, test_scaled = scaling_minmax(train, validate, test)
+    X_train, y_train, X_validate, y_validate, X_test, y_test = seperate_X_y(train_scaled, validate_scaled, test_scaled) 
+
+    return df, df_outlier_3pt, X_train_exp, X_train, y_train, X_validate, y_validate, X_test, y_test
+
+def wrangle_prep_player(player_id):
+    '''
+    Combines all wrangle functions together for a single.  Done before bivariate EDA and modeling.
+    Returns the original dataframe, the outlier 3pt shots (for reference), an unencoded but split X_train_exp
+    for analysis, and encoded and scaled X and y for train, validate and test sets.
+    '''
+    # Acquires the dataset
+    df = tome_prep()
+    # Prep and modify
+    df = game_shots(df)
+    df = season_shots(df)
+    df = create_metrics(df)
+    df = create_distance(df)
+    df , df_outlier_3pt = create_game_event(df)
+    df = df[df.player_id == player_id]
+    # Drop shot type becauase it is not helpful and causes all sorts of problems!
+    dfa = df.copy()
+    dfa.drop(columns = 'shot_type')
+    # Split (stratify on target = 'shot_result')
+    train, validate, test = splitter(dfa, target = 'shot_result')
     # Breaks out X_train, with categoricals unencoded
     X_train_exp = train
     # Encode cats, scale numericals, and then seperate into X and y
@@ -242,19 +274,33 @@ def seperate_X_y(train_scaled, validate_scaled, test_scaled):
     target = 'shot_result'
 
     # Id initial columns to drop (additional columns may be dropped in the modeling process )
-    X_drop_columns_list = ['player', 'player_id', 'team', 'team_id', 'game_id','loc_x', 'loc_y','shot_result',
-                        'game_3pa', 'game_3pm', 'game_3miss', 'cum_3pa', 'cum_3pm', 'cum_3miss','cum_3pct',
-                        'game_event_id', 'shot_made_flag','tm_v1','tm_v3', 'home_False', 'home_True','period_1',
-                        'period_2','period_3','period_5','period_6','period_7']
+    # X_drop_columns_list = ['player', 'player_id', 'team', 'team_id', 'game_id','loc_x', 'loc_y','shot_result',
+    #                     'game_3pa', 'game_3pm', 'game_3miss', 'cum_3pa', 'cum_3pm', 'cum_3miss','cum_3pct',
+    #                     'game_event_id', 'shot_made_flag','tm_v1','tm_v3', 'home_False', 'home_True','period_1',
+    #                     'period_2','period_3','period_5','period_6','period_7',
+    #                     'shot_type_Driving Floating Jump Shot', 'shot_type_Fadeaway Jump Shot',
+    #                     'shot_type_Floating Jump shot', 'shot_type_Jump Bank Shot',
+    #                     'shot_type_Jump Shot', 'shot_type_Pullup Jump shot',
+    #                     'shot_type_Running Jump Shot', 'shot_type_Running Pull-Up Jump Shot',
+    #                     'shot_type_Step Back Bank Jump Shot', 'shot_type_Step Back Jump shot',
+    #                     'shot_type_Turnaround Fadeaway Bank Jump Shot',
+    #                     'shot_type_Turnaround Fadeaway shot', 'shot_type_Turnaround Jump Shot']
+    
+    # Replaced columns to drop with columns to keep - not some may be dropped in modeling
+    X_columns_to_keep = ['abs_time', 'play_time', 'since_rest', 'score_margin', 'points',
+       'games_played', 'tm_v2', 'distance', 'zone_Center',
+       'zone_L Above Break', 'zone_L Below Break/Corner', 'zone_L Center',
+       'zone_R Above Break', 'zone_R Below Break/Corner', 'zone_R Center',
+       'period_4']
 
     # Train, validate and test
-    X_train = train_scaled.drop(columns = X_drop_columns_list)
+    X_train = train_scaled[X_columns_to_keep]
     y_train = train_scaled[target]
 
-    X_validate = validate_scaled.drop(columns = X_drop_columns_list)
+    X_validate = validate_scaled[X_columns_to_keep]
     y_validate = validate_scaled[target]
 
-    X_test = test_scaled.drop(columns = X_drop_columns_list)
+    X_test = test_scaled[X_columns_to_keep]
     y_test = test_scaled[target]
 
     return X_train, y_train, X_validate, y_validate, X_test, y_test
