@@ -22,42 +22,38 @@ You can view our team's presentation deck here: <a href="https://www.canva.com/d
 > - avors: Predicting whether a player should take the shot or not <br>
 
 #### Data Dictionary
-|Target|Datatype|Definition|
-|:-------|:--------|:----------|
-| zillow | 52441 non-null: float64 | Zillow's 2017 predictions & transactions dataset |
-
 |Feature|Datatype|Definition|
 |:-------|:--------|:----------|
-|player       | 84228 non-null| object  | player's official name |
-|player_id    | 84228 non-null| int64   | player's unique id | 
-|team         | 84228 non-null| object  | team name |
-|team_id      | 84228 non-null| int64   | team's unique id |
-|game_id      | 84228 non-null| int64   | game's unique id |
-|home         | 84228 non-null| bool    | home games identified by 1 |
-|period       | 84228 non-null| int64   | 1st 2nd 3rd and 4th periods, data on overtime also included |
-|abs_time     | 84228 non-null| int64   | engineered: how much a player is on the court based on their rotational data | 
-|play_time    | 84228 non-null| float64 | engineered: how much a player is on the court based on rotational data |
-|since_rest   | 84228 non-null| float64 | player's time on the court since the last time they rested |
-|loc_x        | 84228 non-null| int64   | location of three point shot on the court |
-|loc_y        | 84228 non-null| int64   | location of three point shot on the court |
-|zone         | 84228 non-null| object  | engineered: shooting clusters engineered with KMeans | 
-|shot_type    | 84228 non-null| object  | the type of shot based on the player's shooting mechanics | 
-|score_margin | 84228 non-null| int64   | the difference in scores of the winning vs losing team |
-|points       | 84228 non-null| int64   | points per player per game | 
-|shot_result  | 84228 non-null| object  | boolean shot missed/ made |
-|games_played | 84228 non-null| int64   | number of games played in the season |
-|game_3pa     | 84228 non-null| int64   | 3point shots attempted per game |
-|game_3pm     | 84228 non-null| int64   | 3point shots made per game |
-|game_3miss   | 84228 non-null| int64   | 3point shots missed in a game |
-|cum_3pa      | 84228 non-null| int64   | cumulative 3 point shots attempts in a season |
-|cum_3pm      | 84228 non-null| int64   | cumulative 3 point shots made in a season |
-|cum_3miss    | 84228 non-null| int64   | cumulative 3 point shots missed in a season |
-|cum_3pct     | 84228 non-null| float64 | cumulative 3 point shot percent for the season |
-|tm_v1        | 84228 non-null| float64 | engineered tiers for shooters |
-|tm_v2        | 84228 non-null| float64 | engineered tiers for shooters, most accurate |
-|tm_v3        | 84228 non-null| float64 | engineered tiers for shooters |
-|distance     | 84228 non-null| float64 | distance of shots from the rim |
-|game_event_id| 84228 non-null| int64   | chronological game events |
+|player       | 84228 non-null: object  | player's official name |
+|player_id    | 84228 non-null: int64   | player's unique id | 
+|team         | 84228 non-null: object  | team name |
+|team_id      | 84228 non-null: int64   | team's unique id |
+|game_id      | 84228 non-null: int64   | game's unique id |
+|home         | 84228 non-null: bool    | home games identified by 1 |
+|period       | 84228 non-null: int64   | 1st 2nd 3rd and 4th periods, data on overtime also included |
+|abs_time     | 84228 non-null: int64   | engineered: how much a player is on the court based on their rotational data | 
+|play_time    | 84228 non-null: float64 | engineered: how much a player is on the court based on rotational data |
+|since_rest   | 84228 non-null: float64 | player's time on the court since the last time they rested |
+|loc_x        | 84228 non-null: int64   | location of three point shot on the court |
+|loc_y        | 84228 non-null: int64   | location of three point shot on the court |
+|zone         | 84228 non-null: object  | engineered: shooting clusters engineered with KMeans | 
+|shot_type    | 84228 non-null: object  | the type of shot based on the player's shooting mechanics | 
+|score_margin | 84228 non-null: int64   | the difference in scores of the winning vs losing team |
+|points       | 84228 non-null: int64   | points per player per game | 
+|shot_result  | 84228 non-null: object  | boolean shot missed/ made |
+|games_played | 84228 non-null: int64   | number of games played in the season |
+|game_3pa     | 84228 non-null: int64   | 3point shots attempted per game |
+|game_3pm     | 84228 non-null: int64   | 3point shots made per game |
+|game_3miss   | 84228 non-null: int64   | 3point shots missed in a game |
+|cum_3pa      | 84228 non-null: int64   | cumulative 3 point shots attempts in a season |
+|cum_3pm      | 84228 non-null: int64   | cumulative 3 point shots made in a season |
+|cum_3miss    | 84228 non-null: int64   | cumulative 3 point shots missed in a season |
+|cum_3pct     | 84228 non-null: float64 | cumulative 3 point shot percent for the season |
+|tm_v1        | 84228 non-null: float64 | engineered tiers for shooters |
+|tm_v2        | 84228 non-null: float64 | engineered tiers for shooters, most accurate |
+|tm_v3        | 84228 non-null: float64 | engineered tiers for shooters |
+|distance     | 84228 non-null: float64 | distance of shots from the rim |
+|game_event_id| 84228 non-null: int64   | chronological game events |
 
 ##### Plan|:|: 
 > <br>We plan to use the NBA api to acquire individual players game statistics for the model.<br>
