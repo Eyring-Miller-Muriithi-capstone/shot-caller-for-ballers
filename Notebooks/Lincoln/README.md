@@ -5,7 +5,7 @@
 
 In this Capstone project, our team has gathered data from the NBA api with a goal to predict whether or not a player should take a shot. The goal is to create a machine learning model that will allow players the opportunity to take a shot based on previous activities leading to the chance. 
 
-You can view our team's presentation deck here: <a href="https://www.canva.com/design/DAFJC32y92U/b6rqmt93S_OJEJWzffA3Wg/edit?utm_content=DAFJC32y92U&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton">Linux: </a>
+You can view our team's presentation deck here: <a href="https://www.canva.com/design/DAFJC32y92U/b6rqmt93S_OJEJWzffA3Wg/edit?utm_content=DAFJC32y92U&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton">Take the shot or not presentation</a>
 <hr style="border-top: 10px groove blueviolet; margin-top: 1px; margin-bottom: 1px"></hr>
 
 ### Initial Questions
@@ -22,10 +22,6 @@ You can view our team's presentation deck here: <a href="https://www.canva.com/d
 > - avors: Predicting whether a player should take the shot or not <br>
 
 #### Data Dictionary
->
->
-player	player_id	team	team_id	game_id	home	period	abs_time	play_time	since_rest	loc_x	loc_y	zone	shot_type	score_margin	points	fg_pct	shot_result	games_played	game_3pa	game_3pm	game_3miss	cum_3pa	cum_3pm	cum_3miss	cum_3pct	tm_v1	tm_v2	tm_v3	distance	game_event_id
->
 |Feature|Datatype|Definition|
 |:-------     |:--------        |:---------|:
 |player       |:  84228 non-null|: object  |: player's official name 
