@@ -402,7 +402,7 @@ def predictions_generator(df, X_train, y_train, X_test, y_test):
     csv_df = csv_df.rename(columns = {'shot_result_x':'actual'})
     notes = csv_df.predicted.value_counts()
     print(f'Predicted missed shots: {notes[0]}\nPredicted made shots: {notes[1]}')
-    csv_df.to_csv('predictions.csv')
+    csv_df.to_csv('predictions.csv', index = False)
     print("Predictions saved to 'predictions.csv'")
     
     return csv_df
