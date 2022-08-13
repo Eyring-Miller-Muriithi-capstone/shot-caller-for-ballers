@@ -191,7 +191,7 @@ def wrangle_prep():
     df , df_outlier_3pt = create_game_event(df)
     # Drop shot type becauase it is not helpful and causes all sorts of problems!
     dfa = df.copy()
-    dfa.drop(columns = 'shot_type')
+    dfa = dfa.drop(columns = 'shot_type')
     # Split (stratify on target = 'shot_result')
     train, validate, test = splitter(dfa, target = 'shot_result')
     # Breaks out X_train, with categoricals unencoded
@@ -217,10 +217,10 @@ def wrangle_prep_player(player_id):
     df = create_metrics(df)
     df = create_distance(df)
     df , df_outlier_3pt = create_game_event(df)
-    df = df[df.player_id == player_id]
+    df = df[df.player == player_id]
     # Drop shot type becauase it is not helpful and causes all sorts of problems!
     dfa = df.copy()
-    dfa.drop(columns = 'shot_type')
+    dfa = dfa.drop(columns = 'shot_type')
     # Split (stratify on target = 'shot_result')
     train, validate, test = splitter(dfa, target = 'shot_result')
     # Breaks out X_train, with categoricals unencoded
@@ -286,7 +286,7 @@ def seperate_X_y(train_scaled, validate_scaled, test_scaled):
     #                     'shot_type_Turnaround Fadeaway Bank Jump Shot',
     #                     'shot_type_Turnaround Fadeaway shot', 'shot_type_Turnaround Jump Shot']
     
-    # Replaced columns to drop with columns to keep - not some may be dropped in modeling
+    # Replaced columns to drop with columns to keep - note some may still be dropped in modeling
     X_columns_to_keep = ['abs_time', 'play_time', 'since_rest', 'score_margin', 'points',
        'games_played', 'tm_v2', 'distance', 'zone_Center',
        'zone_L Above Break', 'zone_L Below Break/Corner', 'zone_L Center',
