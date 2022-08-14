@@ -9,11 +9,11 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle, Arc
 
-def univariate(df):
-    """This function creates univariate histograms of all the NBA players variables.
-    Call in by importing this explore.py file, then type: explore.univariate(df)"""
-    df.hist(bins = 30, figsize = (20, 20), color= 'blue')
-
+# def univariate(df):
+#     """This function creates univariate histograms of all the NBA players variables.
+#     Call in by importing this explore.py file, then type: explore.univariate(df)"""
+#     df.hist(bins = 30, figsize = (20, 20), color= 'blue')
+#     return plot
 
 
 
@@ -129,8 +129,13 @@ def chi_square_test(col1, col2):
     p
     
     
+    
+    
+#############################  EDA   ####################################
+    
 import itertools
-df, df_outlier_3pt, X_train_exp, X_train, y_train, X_validate, y_validate, X_test, y_test = wrangle.pre_wrangle_prep()
+df, df_outlier_3pt, X_train_exp, X_train, y_train, X_validate, y_validate, X_test, y_test = wrangle.wrangle_prep()
+sns.set(rc={'figure.figsize':(17.7,8.27)})
 
 def plot_categorical():
     """this finction creates a bin for time since rest and plots the significant categorical features"""
@@ -139,9 +144,7 @@ def plot_categorical():
     for i, predictor in enumerate(cat_cols):
         plt.figure(i)
         plot= sns.countplot(data=X_train_exp, x=predictor, hue='shot_made_flag')
-#         sns.set(rc={'figure.figsize':(17.7,8.27)})
         plt.setp(plot.get_xticklabels(), rotation=90) 
-        sns.set(rc={'figure.figsize':(17.7,8.27)})
 
     return plot
 
@@ -180,6 +183,8 @@ def plot_curry_bros():
 def plot_numerical_made():
     """this function plots numerical features with relationship to the players time since rest"""
     numerics = X_train_exp[['score_margin','cum_3pa','points','tm_v1', 'tm_v2', 'tm_v3']]
+    sns.set(rc={'figure.figsize':(17.7,8.27)})
+
     for i, predictor in enumerate(numerics):
         plt.figure(i)
         plot= sns.lmplot(data=X_train_exp.sample(900), y=predictor, x='since_rest')#, hue = 'shot_made_flag')
