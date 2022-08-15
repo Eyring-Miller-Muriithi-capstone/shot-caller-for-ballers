@@ -1,6 +1,6 @@
 '''
 Univariate Distributions, Bivariate Analysis and Hypothesis Testing, Multivariate Analysis.
-Alos, any other code that needs to be run in the final notebook.
+Also, any other code that needs to be run in the final notebook.
 '''
 import pandas as pd
 import numpy as np
@@ -9,6 +9,327 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle, Arc
 import scipy.stats as stats
 from nba_api.stats.endpoints import leaguegamefinder
+
+
+# ------------------------------------------------------------------------------------------------
+# Univariate Analysis Functions
+# ------------------------------------------------------------------------------------------------
+
+
+def univariate(df):
+    '''
+    This function creates univariate histograms of all the NBA players variables.
+    Call in by importing this explore.py file, then type: explore.univariate(df)
+    '''
+    df.hist(bins = 30, figsize = (20, 20), color= 'blue')
+
+
+# ------------------------------------------------------------------------------------------------
+# Bivariate/Multivariate Graphing and Hypothesis Testing
+# ------------------------------------------------------------------------------------------------
+
+def heatmap(X_train_exp):
+    '''
+    This function returns a heatmap of continuous numerical features
+    '''
+    # Identify the continuous features of interest 
+    cont_cols = ['since_rest','score_margin','games_played','cum_3pct', 'tm_v2', 'distance','abs_time',
+                 'play_time', 'points']
+
+    # Create a correlation matrix from the continuous numerical columns
+    df_cont_cols = X_train_exp[cont_cols]
+    corr = df_cont_cols.corr()
+
+    # Pass correlation matrix on to sns heatmap
+    plt.figure(figsize=(12,12))
+    sns.heatmap(corr, annot=True, cmap="flare", mask=np.triu(corr))
+    plt.show()
+
+# Categorical--------------------------------------------------------------------------------------
+
+def plot_categorical(X_train_exp):
+    '''
+    This finction creates a bin for time since rest and plots the significant categorical features.
+    '''
+    # Setting for plots
+    sns.set(rc={'figure.figsize':(17.7,8.27)})
+
+    # Create plots
+    X_train_exp['rest_bin'] = pd.cut(X_train_exp.since_rest,[0,250,500,750,1000,2000,3000])
+    cat_cols = X_train_exp[['team','zone']]
+    for i, predictor in enumerate(cat_cols):
+        plt.figure(i)
+        plot= sns.countplot(data=X_train_exp, x=predictor, hue='shot_made_flag')
+        plt.setp(plot.get_xticklabels(), rotation=90) 
+    plt.show()
+
+    return plot
+
+def home_vs_target(X_train_exp):
+    # Set alpha:
+    a = .05
+
+    # 'Encoded' target
+    target_encoded = 'shot_made_flag'
+
+    # Modify home to no be boolean for plotting
+    exp = X_train_exp.copy()
+    exp['home'] = np.where(exp.home == True, "Home","Away")
+
+    # Plot
+    plt.figure(figsize = (20,10))
+    plt.subplot(121)
+    sns.histplot(data = exp, x = exp['home'], hue = 'shot_result', multiple = 'stack')   
+    plt.subplot(122)
+    sns.barplot(x = 'home', y = target_encoded, data=exp, alpha=.8, color='lightblue')
+    plt.axhline(exp[target_encoded].mean(), ls='--', color='gray')
+    plt.show()
+
+    # Hypothesis Test
+    observed = pd.crosstab(X_train_exp.home, X_train_exp.shot_result)
+    chi2, p, degf, expected = stats.chi2_contingency(observed)
+    print(f'Chi-square = {chi2}')
+    if p < a:
+        print(f'p = {p}, reject the null hypothesis.')
+    else:
+        print(f'p = {p}, fails to reject the null hypothesis.') 
+
+def period_vs_target(exp):
+    # Set alpha:
+    a = .05
+
+    # 'Encoded' target
+    target_encoded = 'shot_made_flag'
+
+    # Plot
+    plt.figure(figsize = (20,10))
+    plt.subplot(121)
+    sns.histplot(data = exp, x = exp['period'], hue = 'shot_result', multiple = 'stack')   
+    plt.subplot(122)
+    sns.barplot(x = 'period', y = target_encoded, data=exp, alpha=.8, color='lightblue')
+    plt.axhline(exp[target_encoded].mean(), ls='--', color='gray')
+    plt.show()
+
+    # Hypothesis Test
+    observed = pd.crosstab(X_train_exp.home, X_train_exp.shot_result)
+    chi2, p, degf, expected = stats.chi2_contingency(observed)
+    print(f'Chi-square = {chi2}')
+    if p < a:
+        print(f'p = {p}, reject the null hypothesis.')
+    else:
+        print(f'p = {p}, fails to reject the null hypothesis.') 
+
+def zone_vs_target(exp):
+    # Set alpha:
+    a = .05
+
+    # 'Encoded' target
+    target_encoded = 'shot_made_flag'
+
+    # Plot
+    plt.figure(figsize = (20,10))
+    plt.subplot(121)
+    sns.histplot(data = exp, x = exp['zone'], hue = 'shot_result', multiple = 'stack')   
+    plt.subplot(122)
+    sns.barplot(x = 'zone', y = target_encoded, data=exp, alpha=.8, color='lightblue')
+    plt.axhline(exp[target_encoded].mean(), ls='--', color='gray')
+    plt.show()
+
+    # Hypothesis Test
+    observed = pd.crosstab(X_train_exp.home, X_train_exp.shot_result)
+    chi2, p, degf, expected = stats.chi2_contingency(observed)
+    print(f'Chi-square = {chi2}')
+    if p < a:
+        print(f'p = {p}, reject the null hypothesis.')
+    else:
+        print(f'p = {p}, fails to reject the null hypothesis.') 
+
+# Continuous--------------------------------------------------------------------------------------
+
+def distance_vs_target(exp):
+    # Set alpha
+    a = .05
+
+    # Create charts - hist of numerical then boxenplot vs target
+    plt.figure(figsize=(20,10))        
+    plt.subplot(121)
+    sns.histplot(exp.distance)
+    plt.subplot(122)
+    sns.boxenplot(y = exp.distance, x = 'shot_result', data=exp)
+    plt.axhline(exp.distance.mean(), ls='--', color='gray')
+    plt.show()
+
+    # Hypothesis Test
+    distance_made = exp[exp.shot_result == 'Made Shot'].distance
+    distance_missed = exp[exp.shot_result == 'Missed Shot'].distance
+    t, p = stats.ttest_ind(distance_made, distance_missed, equal_var=True)
+    print(f't = {t}')
+    if p/2 < a:
+        print(f'p = {p}, reject the null hypothesis.')
+    else:
+        print(f'p = {p}, fails to reject the null hypothesis.')
+
+def tmv2_vs_target(exp):
+    # Set alpha
+    a = .05
+
+    # Create charts - hist of numerical then boxenplot vs target
+    plt.figure(figsize=(20,10))        
+    plt.subplot(121)
+    sns.histplot(exp.tm_v2)
+    plt.subplot(122)
+    sns.boxenplot(y = exp.tm_v2, x = 'shot_result', data=exp)
+    plt.axhline(exp.tm_v2.mean(), ls='--', color='gray')
+    plt.show()
+
+    # Hypothesis Test
+    tmv2made = exp[exp.shot_result == 'Made Shot'].tm_v2
+    tmv2missed = exp[exp.shot_result == 'Missed Shot'].tm_v2
+    t, p = stats.ttest_ind(tmv2made, tmv2missed, equal_var=True)
+    print(f't = {t}')
+    if p/2 < a:
+        print(f'p = {p}, reject the null hypothesis.')
+    else:
+        print(f'p = {p}, fail to reject the null hypothesis.')
+
+def rest_vs_target(exp):
+    # Set alpha
+    a = .05
+
+    # Create charts - hist of numerical then boxenplot vs target
+    plt.figure(figsize=(20,10))        
+    plt.subplot(121)
+    sns.histplot(exp.since_rest)
+    plt.subplot(122)
+    sns.boxenplot(y = exp.since_rest, x = 'shot_result', data=exp)
+    plt.axhline(exp.since_rest.mean(), ls='--', color='gray')
+    plt.show()
+
+    # Hypothesis Test
+    restmade = exp[exp.shot_result == 'Made Shot'].since_rest
+    restmissed = exp[exp.shot_result == 'Missed Shot'].since_rest
+    t, p = stats.ttest_ind(restmade, restmissed, equal_var=True)
+    print(f't = {t}')
+    if p/2 < a:
+        print(f'p = {p}, reject the null hypothesis.')
+    else:
+        print(f'p = {p}, fail to reject the null hypothesis.')
+
+def score_margin_vs_target(exp):
+    # Set alpha
+    a = .05
+
+    # Create charts - hist of numerical then boxenplot vs target
+    plt.figure(figsize=(24,12))        
+    plt.subplot(121)
+    sns.histplot(exp.score_margin)
+    plt.subplot(122)
+    sns.boxenplot(y = exp.score_margin, x = 'shot_result', data=exp)
+    plt.axhline(exp.score_margin.mean(), ls='--', color='gray')
+    plt.show()
+
+    # Hypothesis Test
+    scoremarginmade = exp[exp.shot_result == 'Made Shot'].score_margin
+    scoremarginmissed = exp[exp.shot_result == 'Missed Shot'].score_margin
+    t, p = stats.ttest_ind(scoremarginmade, scoremarginmissed, equal_var=True)
+    print(f't = {t}')
+    if p/2 < a:
+        print(f'p = {p}, reject the null hypothesis.')
+    else:
+        print(f'p = {p}, fail to reject the null hypothesis.')
+
+def games_played_vs_target(exp):
+    # Set alpha
+    a = .05
+
+    # Create charts - hist of numerical then boxenplot vs target
+    plt.figure(figsize=(24,12))        
+    plt.subplot(121)
+    sns.histplot(exp.games_played)
+    plt.subplot(122)
+    sns.boxenplot(y = exp.games_played, x = 'shot_result', data=exp)
+    plt.axhline(exp.games_played.mean(), ls='--', color='gray')
+    plt.show()
+
+    # Hypothesis Test
+    gpmade = exp[exp.shot_result == 'Made Shot'].games_played
+    gpmissed = exp[exp.shot_result == 'Missed Shot'].games_played
+    t, p = stats.ttest_ind(gpmade, gpmissed, equal_var=True)
+    print(f't = {t}')
+    if p/2 < a:
+        print(f'p = {p}, reject the null hypothesis.')
+    else:
+        print(f'p = {p}, fail to reject the null hypothesis.')
+
+
+
+
+
+################# Hypothesis Testing ##########################
+
+def chi_square_test(col1, col2):
+    """This function runs a chi-square test on two variables to find any 
+    statistical relationship of dependancy. 
+    To call this function, input your df.(column_1) and df.(column_2)"""
+
+    alpha = 0.05
+    null_hypothesis = "{col1} and {col2} are independent"
+    alternative_hypothesis = "there is a relationship between {col1} and {col2}"
+
+# Setup a crosstab of observed survival to pclass
+    observed = pd.crosstab(col1, col2)
+
+    chi2, p, degf, expected = stats.chi2_contingency(observed)
+
+    if p < alpha:
+        print("Reject the null hypothesis that", null_hypothesis)
+        print("Sufficient evidence to move forward understanding that", alternative_hypothesis)
+    else:
+        print("Fail to reject the null")
+        print("Insufficient evidence to reject the null")
+    
+
+# ------------------------------------------------------------------------------------------------
+# Additional Helper Functions
+# ------------------------------------------------------------------------------------------------
+
+
+def find_elites(df):
+    '''
+    Using our Jemetric, aka tm_v2, we determine the elite players as those whose Jemetric is 2 stadard deviations
+    above the league average.
+    '''
+    # Create a Series of v2 scores, binned by player
+    tm_v2_scores = df.groupby('player').tm_v2.mean()
+    # Calculate the std and mean
+    stddev = tm_v2_scores.std()
+    meanscore = tm_v2_scores.mean()
+    # Create an elite cutoff score at two standard deviations above the mean
+    elites = meanscore + 2 * stddev
+    # Print the list of 'elite' players
+    elites_list = tm_v2_scores[tm_v2_scores > elites].index
+
+    return elites_list
+
+
+def jem_graph(df, player_list):
+    '''
+    Takes a list of players and returns their season Jemetric
+    '''
+    # Creates graphs for inputted players
+    plt.figure(figsize = (15,5))
+    for player in player_list:
+        df_p = df[df['player'] == player]
+        sns.lineplot(data = df_p, x = 'games_played',y = 'tm_v2')
+    plt.show()
+
+    return 
+
+
+# ------------------------------------------------------------------------------------------------
+# Functions showing the importance of 3pt shots
+# ------------------------------------------------------------------------------------------------
+
 
 def winner_3pct():
     '''
@@ -55,6 +376,7 @@ def winner_3pct():
 
     return past_ten
 
+
 def winner_pct_h_test(df_season):
     '''
     This function performs a hypothesis test on the winning team and losing team series from a given year,
@@ -88,18 +410,10 @@ def winner_pct_h_test(df_season):
     return
 
 
+# ------------------------------------------------------------------------------------------------
+# Shot-Court visualization functions
+# ------------------------------------------------------------------------------------------------
 
-def univariate(df):
-    """This function creates univariate histograms of all the NBA players variables.
-    Call in by importing this explore.py file, then type: explore.univariate(df)"""
-    df.hist(bins = 30, figsize = (20, 20), color= 'blue')
-
-
-
-
-
-
-########## Court Drawing and player Scatter plots ################
 
 def draw_court(ax=None, color='black', lw=2, outer_lines=False):
     """This function comes from Savvas Tjortjoglou of how to create
@@ -171,39 +485,20 @@ def draw_court(ax=None, color='black', lw=2, outer_lines=False):
 
     return ax
 
-def scatter_plot_player_shots(df):
-    """For scatter plotting a players shots. The player needs to be held in their
-    own df for this, or all shots will be charted. 
-    Example: (for Steph Curry) df_curry = df.player == 'Stephen Curry' 
-    Then the player's df can be inputted to the plot."""
-    g=sns.relplot(data=df, kind = 'scatter',
-    x = df.loc_x, y= df.loc_y, hue= df.shot_result)
 
+def scatter_plot_player_shots(df_player):
+    '''
+    For scatter plotting a players shots. The player needs to be held in their
+    own df for this, or all shots will be charted. 
+    Example: (for Steph Curry) df_player = df[df.player == 'Stephen Curry'] 
+    Then the player's df can be inputted to the plot.
+    '''
+    # Create basic scatterplot
+    g=sns.relplot(data=df_player, kind = 'scatter',
+    x = df_player.loc_x, y= df_player.loc_y, hue= df_player.shot_result)
+
+    # Place scatterplot on court model
     for i, ax in enumerate(g.axes.flat):
         ax = draw_court(ax, outer_lines=True)
         ax.set_xlim(-300, 300)
         ax.set_ylim(-100, 500)
-
-################# Hypothesis Testing ##########################
-
-def chi_square_test(col1, col2):
-    """This function runs a chi-square test on two variables to find any 
-    statistical relationship of dependancy. 
-    To call this function, input your df.(column_1) and df.(column_2)"""
-
-    alpha = 0.05
-    null_hypothesis = "{col1} and {col2} are independent"
-    alternative_hypothesis = "there is a relationship between {col1} and {col2}"
-
-# Setup a crosstab of observed survival to pclass
-    observed = pd.crosstab(col1, col2)
-
-    chi2, p, degf, expected = stats.chi2_contingency(observed)
-
-    if p < alpha:
-        print("Reject the null hypothesis that", null_hypothesis)
-        print("Sufficient evidence to move forward understanding that", alternative_hypothesis)
-    else:
-        print("Fail to reject the null")
-        print("Insufficient evidence to reject the null")
-    p
