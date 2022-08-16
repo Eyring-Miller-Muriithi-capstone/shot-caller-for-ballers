@@ -1,19 +1,12 @@
-'''
-These functions drive the complicated process of calling multiple NBA statistical endpoints
-using an open source program called NBA-API.
-It is encapsulated in a single function, tome_prep(), which emits a dataframe ready for further pre-processing.
-'''
-# DS Libraries
 import pandas as pd
 import numpy as np
 import os
 import time
 
-# Plotting Functions
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle, Rectangle, Arc
 import seaborn as sns
 
-# NBA-API Endpoint Analyzers
 from nba_api.stats.static import teams
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import gamerotation
@@ -21,7 +14,6 @@ from nba_api.stats.endpoints import shotchartdetail
 from nba_api.stats.endpoints import teamplayerdashboard
 from nba_api.stats.endpoints import winprobabilitypbp
 
-# For clustering
 from sklearn.cluster import KMeans
 
 # ------------------------------------------------------------------------------------------------
@@ -35,7 +27,7 @@ def get_team_player_ids():
     Needed to account for players who played for multiple teams in the season.
     '''
     filename = 'team_player_ids.csv'
-    # Checks if .csv already exists
+    # Checks if .csv alreqady exists
     if os.path.isfile(filename):
         team_player_ids =  pd.read_csv(filename, index_col=0)
         players_list = team_player_ids.values.tolist()
@@ -96,7 +88,7 @@ def get_absolute_time_shots(df):
     '''
     Takes in a dataframe based on 'ShotChartDetail' NBA-API endpoint and adds a column with the absolute game time, in seconds.
     '''
-    # Covers overtime edge cases by having seperate calculation if game is in overtime (periods > 4)
+    # Covers overtime edge cases by having seperate function if game is in overtime (periods > 4)
     df['abs_time'] = np.where(df.PERIOD < 5,
                                 (df.PERIOD - 1) * 720 + (720 - (60 * df.MINUTES_REMAINING) - (df.SECONDS_REMAINING)),
                                 2880 + ((df.PERIOD - 5) * 300) + (300 - (60 * df.MINUTES_REMAINING) - (df.SECONDS_REMAINING)))
@@ -120,32 +112,26 @@ def create_3pt_shot_zones(df_shots):
     # df with outliers removed
     df_shots = df_shots[df_shots.SHOT_DISTANCE <= bound]
 
-    # Create the clusters
+    # Create the clusters - ***Create sub functions for all these components
     df_3pt = df_all_3pt[df_all_3pt.SHOT_DISTANCE <= bound]
     X = df_3pt[['LOC_X','LOC_Y']]
     kmeans = KMeans(n_clusters=7)
     kmeans.fit(X)
     clusters = kmeans.predict(X)
     df_3pt['location'] = clusters
-    # Emit a graph for funsies
-    plt.figure(figsize = (12,12))
-    sns.scatterplot(data =df_3pt, x='LOC_X', y = 'LOC_Y', hue = 'location')
-    plt.show()
 
     # Naming the zones and creating the column to merge back to df_shots
     df_3pt['zone'] = df_3pt['location'].map({0: 'R Above Break', 1: 'L Above Break',2:'L Below Break/Corner',3:'R Center',4:'R Below Break/Corner',5:'Center',6:'L Center'})
     zone_column = df_3pt[['zone']]
 
-    # Merge
+    # Emit a graph for funsies
+    scatter_plot_player_shots(df_3pt)
+
     df_shots = df_shots.merge(zone_column, how = 'left', left_index = True, right_index = True)
 
-    # Returns outliers as well
     return df_shots, df_outlier_3pt
 
 def acquire_shots():
-    '''
-    Performs all steps above to acquire shots with clusters and caches to .csv
-    '''
     filename1 = 'all_last_season_shots_3pt_clusters.csv'
     filename2 = 'last_season_outlier_3PA.csv'
     # Check to see if .csv is in directory - asssumes if one is, both are
@@ -181,7 +167,7 @@ def get_absolute_time_winprob(df):
     '''
     Takes in a dataframe based on 'WinProbabilityPBP' NBA-API endpoint and adds a column with the absolute game time, in seconds.
     '''
-    # Covers overtime edge cases by having seperate calculations if game is in overtime (periods > 4)
+    # Covers overtime edge cases by having seperate function if game is in overtime (periods > 4)
     df['abs_time'] = np.where(df.PERIOD <5,
                      ((df.PERIOD - 1) * 720 + (720 - df.SECONDS_REMAINING)),
                      (2880 + (df.PERIOD - 5) * 300 + (300 - df.SECONDS_REMAINING)))
@@ -211,10 +197,8 @@ def build_player_gameline(df_player_roto_times, df_base):
     '''
     This builds the player gameline to include play time
     '''
-    # Creates a list of sublists, each sublist being the time bounds of their in-game appearances
     zipped = list(zip(df_player_roto_times.abs_in_time, df_player_roto_times.abs_out_time))
 
-    # Initialize a list starting with zero for rest times
     rest_time = [0]
     for i in range(len(zipped)-1):
         rest_time.append(zipped[i+1][0] - zipped[i][1])
@@ -223,7 +207,6 @@ def build_player_gameline(df_player_roto_times, df_base):
     # Let me create a holder dataframe as I pull slices off from the base
     df_player_game = pd.DataFrame()
     counter = 0
-    # Create columns based on playing time and rest
     for times in zipped:
         in_time = times[0]
         df_slice = df_base[(df_base.abs_time >= times[0]) & (df_base.abs_time <= times[1])]
@@ -237,9 +220,6 @@ def build_player_gameline(df_player_roto_times, df_base):
     return df_player_game
 
 def acquire_player_game(game_id, player_id):
-    '''
-    This gives a second by second record of the game for the times in the game the player appears
-    '''
     df_base = create_base_df(game_id)
     df_player_roto_times = get_player_rotation_data(game_id, player_id)
     df_player_game = build_player_gameline(df_player_roto_times, df_base)
@@ -252,21 +232,16 @@ def acquire_player_game(game_id, player_id):
 
 def get_player_game_shots(game_id, player_id, df_shots):
     '''
-    Creates a df of all a players shots in a game
+    Does something...
     '''
     df_game_shots = df_shots[df_shots.GAME_ID == int(game_id)]
     df_game_shots = df_game_shots[df_game_shots.PLAYER_ID == player_id]
 
-    # Add in home category (True or False)
     df_game_shots = id_home_team(df_game_shots)
 
     return df_game_shots
 
 def id_home_team(df_game_shots):
-    '''
-    Identifies home team and creates a boolean column
-    '''
-    # Discovered Clippers are mis-entered in the API and need to be changed to work
     if df_game_shots.TEAM_NAME.max() == 'LA Clippers':
         df_game_shots.TEAM_NAME = 'Los Angeles Clippers'
     df_game_shots['home'] = np.where(teams.find_teams_by_full_name(df_game_shots.TEAM_NAME.max())[0]['abbreviation'] == df_game_shots.HTM, True, False)
@@ -274,10 +249,6 @@ def id_home_team(df_game_shots):
     return df_game_shots
 
 def player_game(df_game_shots, df_player_game):
-    '''
-    Merges a player's shots with their second-by-second stats
-    '''
-    # Merge on absolute time, remove all home vs visitor columns and make them team focused
     df_player_game = df_player_game.merge(df_game_shots, how = 'inner', on = 'abs_time')
     df_player_game['score_margin'] = np.where(df_player_game.home == True, df_player_game.HOME_SCORE_MARGIN, df_player_game.HOME_SCORE_MARGIN * -1)
     if df_player_game.loc[0,'home'] == True:
@@ -294,7 +265,6 @@ def player_game(df_game_shots, df_player_game):
     df_player_game['points'] = df_player_game['play_points'].cumsum() - df_player_game['play_points']
     df_player_game['shots_taken'] = df_player_game['SHOT_ATTEMPTED_FLAG'].cumsum()
     df_player_game['shots_hit'] = df_player_game['SHOT_MADE_FLAG'].cumsum()
-
     # Need to count the previous row's shooting percentage to not include current shot.
     df_player_game['fg_pct'] = np.where(df_player_game['SHOT_MADE_FLAG'] == 1, 
                                         round((df_player_game['shots_hit']-1)/(df_player_game['shots_taken']-1),2),
@@ -303,10 +273,7 @@ def player_game(df_game_shots, df_player_game):
     return df_player_game
 
 def clean_game(df_player_game):
-    '''
-    Rename and drop columns, while also removing all non-3pt shots.
-    '''
-    # Columns to rename
+    #coumns to rename
     columns_to_rename = {'WIN_PCT':'win_prob',
                      'GAME_ID_y':'game_id',
                      'PLAYER_ID':'player_id',
@@ -319,7 +286,7 @@ def clean_game(df_player_game):
                      'LOC_X':'loc_x',
                      'LOC_Y':'loc_y',
                      'EVENT_TYPE':'shot_result'}
-    # Columns to remove
+    #columns to remove
     columns_to_drop = [
         'GAME_ID_x',
         'EVENT_NUM',
@@ -352,11 +319,10 @@ def clean_game(df_player_game):
         'GAME_DATE',
         'HTM',
         'VTM']
-    # Columns to type change - None
-
+    #columns to type change - None
     df_player_game = df_player_game.drop(columns = columns_to_drop)
     df_player_game = df_player_game.rename(columns = columns_to_rename)
-    # Filter out the 3pointers
+    # filter out the 3pointers
     df_player_game_target = df_player_game[df_player_game['fg_type'] == '3PT Field Goal']
 
     return df_player_game_target
@@ -366,9 +332,7 @@ def clean_game(df_player_game):
 # ------------------------------------------------------------------------------------------------
 
 def acquire_player_game_target(game_id, player_id, df_shots): #moved df_shots to here to not have to call it every time
-    '''
-    Acquires a single player's 3 point shot and featurs around that shot for a single game
-    '''
+
     df_player_game = acquire_player_game(game_id, player_id)
 
     df_game_shots = get_player_game_shots(game_id, player_id, df_shots)
@@ -384,28 +348,18 @@ def acquire_player_game_target(game_id, player_id, df_shots): #moved df_shots to
 # ------------------------------------------------------------------------------------------------
 
 def player_season_3pa(player_full_name):
-    '''
-    Creates an entire season of 3-point shots for the player using the NBA API
-    '''
-
-    # We used player_full_name as the input parameter (for Tableau purposes) so need to get back player_id
     player_id = players.find_players_by_full_name(player_full_name)[0]['id']
 
-    # Will use df_shots only
     df_shots, df_outlier_3pt = acquire_shots()
 
-    # Unique game_ids for the player (games they shot a three in this season)
     game_id_list = df_shots[df_shots.PLAYER_ID == player_id].GAME_ID.unique()
     
-    # Add in the leading zeros, as this format is required
     game_id_list = [f'00{n}' for n in game_id_list]
 
-    # Initialize and empty dataframe
     df_player_season = pd.DataFrame()
 
     count = 1
 
-    # Loop for actual scraping
     for game in game_id_list:
         print(f'\rLoading game {count} of {len(game_id_list)} for {player_full_name} in 2021-2022 Regular Season', end='')
         try:
@@ -414,30 +368,20 @@ def player_season_3pa(player_full_name):
             count += 1
             time.sleep(.5)
         except:
-            # When it fails, capture the spot for restarting
             print(f'\nLoad of game {count} for {player_full_name} failed.\n')
             continue
-    
-    # Dataframe for a player-season
+
     df_player_season.reset_index(drop = True, inplace = True)
 
     return df_player_season
 
 def the_tome():
-    '''
-    The tome is the name for the full document with all player's three point shots (outliers removed)
-    for the 2021-2022 regular season.
-    Caches to an in_process_tome so as to not lose data on restarts.
-    '''
-    # Acquire all 3pt shots for the season
     df_shots, df_outlier_3pt = acquire_shots()
 
-    # Need player names and ids zipped into a list of tuples
     player_id_list = df_shots.PLAYER_ID.unique()
     player_name_list = df_shots.PLAYER_NAME.unique()
     player_tuple = list(zip(player_id_list, player_name_list))
 
-    # Check for cached file, if none initialize
     if os.path.isfile('in_progress_tome.csv'):
         df_league_3pa =  pd.read_csv('in_progress_tome.csv', index_col=0)
     else:
@@ -445,7 +389,6 @@ def the_tome():
 
     player_count = 1
 
-    # Loop through each player using NBA API and all their games and collect data
     for player in player_tuple:
         game_id_list = df_shots[df_shots.PLAYER_ID == player[0]].GAME_ID.unique()
     
@@ -453,13 +396,10 @@ def the_tome():
          
         df_player_season = pd.DataFrame()
 
-        # Game count, mostly for tracking when scrape fails
         game_count = 1
 
-        # Error counter - rather than stop on every error, we have a counter to give the scrape a chance to restart on its own
         error_count = 0
 
-        # 596 player records
         for game in game_id_list:
             print(f'\rLoading game {game_count} of {len(game_id_list)} for {player[1]} (player {player_count} of 596) in 2021-2022 Regular Season.                    ', end='')
             try:
@@ -467,12 +407,10 @@ def the_tome():
                 df_player_season = pd.concat([df_player_season,df_game])  
                 game_count += 1
                 time.sleep(.5)
-            # Need this for some errors or it will not stop
             except KeyboardInterrupt:
                 print(f'\nLoad of game {game_count} for {player[1]} failed.\n')
                 print('Keyboard Interrupt')
                 return df_league_3pa
-            # Try again!
             except:
                 print(f'\nLoad of game {game_count} for {player[1]} failed.\n')
                 time.sleep(5)
@@ -496,9 +434,6 @@ def the_tome():
     return df_league_3pa
 
 def get_tome():
-    '''
-    Once tome is finished, this is the easier way to get it's cached data in league_3pa.csv
-    '''
     filename = 'league_3pa.csv'
     if os.path.isfile(filename):
         df_league_3pa =  pd.read_csv(filename, index_col=0)
@@ -509,13 +444,8 @@ def get_tome():
     return df_league_3pa
 
 def tome_prep():
-    '''
-    Calls get_tome() above and then removes some columns, reordering and adds in their game running point total
-    '''
     df = get_tome()
-    # A number of duplicates were accidentally created in league_3pa.csv, this removes them
     df = df.drop_duplicates(subset = ['game_id','player_id','period','shot_result','loc_x','loc_y'])
-    # Win prob is dropped because it doesn't cover the last 500 seconds of a game.  fg_type and fg_pct not effective
     df = df.drop(columns = ['win_prob','fg_type','fg_pct'])
     df = df[['player',
             'player_id',
@@ -532,9 +462,106 @@ def tome_prep():
             'zone',
             'shot_type',
             'score_margin',
-            'points',    
+            'points',     
             'shot_result']]
-    # Correcting for mistake in earlier scraping code to remove the shot value itself from the player's points
     df['points'] = np.where(df.shot_result == 'Made Shot', df.points - 3, df.points)
+    df = df.reset_index(drop = True)
     
     return df
+
+# 
+# Court Graphing Function
+#
+
+
+def draw_court(ax=None, color='black', lw=2, outer_lines=False):
+    '''
+    This function comes from Savvas Tjortjoglou of how to create
+     an NBA sized court to plot our findings/data points on.
+    '''    
+    # If an axes object isn't provided to plot onto, just get current one
+    if ax is None:
+        ax = plt.gca()
+
+    ####Creating the various parts of an NBA basketball court:
+
+    # 1) Create the basketball hoop:
+    # Diameter of a hoop is 18" so it has a radius of 9", which is a value
+    # 7.5 in our coordinate system
+    hoop = Circle((0, 0), radius=7.5, linewidth=lw, color=color, fill=False)
+
+    # 2) Create the backboard (rectangle parameters)
+    backboard = Rectangle((-30, -7.5), 60, -1, linewidth=lw, color=color)
+
+    # 3) The paint (on the court edges):
+    # Create the outer box 0f the paint, width=16ft, height=19ft
+    outer_box = Rectangle((-80, -47.5), 160, 190, linewidth=lw, color=color,
+                          fill=False)
+    # Create the inner box of the paint, widt=12ft, height=19ft
+    inner_box = Rectangle((-60, -47.5), 120, 190, linewidth=lw, color=color,
+                          fill=False)
+
+    # 4) Create free throw top arc:
+    top_free_throw = Arc((0, 142.5), 120, 120, theta1=0, theta2=180,
+                         linewidth=lw, color=color, fill=False)
+    # 5) Create free throw bottom arc:
+    bottom_free_throw = Arc((0, 142.5), 120, 120, theta1=180, theta2=0,
+                            linewidth=lw, color=color, linestyle='dashed')
+    # 6) Restricted Zone, it is an arc with 4ft radius from center of the hoop
+    restricted = Arc((0, 0), 80, 80, theta1=0, theta2=180, linewidth=lw,
+                     color=color)
+
+    # 7) Three point line:
+    # Create the side 3pt lines, they are 14ft long before they begin to arc
+    corner_three_a = Rectangle((-220, -47.5), 0, 140, linewidth=lw,
+                               color=color)
+    corner_three_b = Rectangle((220, -47.5), 0, 140, linewidth=lw, color=color)
+    # 3pt arc - center of arc will be the hoop, arc is 23'9" away from hoop
+    # I just played around with the theta values until they lined up with the 
+    # threes
+    three_arc = Arc((0, 0), 475, 475, theta1=22, theta2=158, linewidth=lw,
+                    color=color)
+
+    # 8) Create Center Court:
+    center_outer_arc = Arc((0, 422.5), 120, 120, theta1=180, theta2=0,
+                           linewidth=lw, color=color)
+    center_inner_arc = Arc((0, 422.5), 40, 40, theta1=180, theta2=0,
+                           linewidth=lw, color=color)
+
+    # Here is a List of the court elements to be plotted onto the axes:
+    court_elements = [hoop, backboard, outer_box, inner_box, top_free_throw,
+                      bottom_free_throw, restricted, corner_three_a,
+                      corner_three_b, three_arc, center_outer_arc,
+                      center_inner_arc]
+
+    if outer_lines:
+        # Draw the half court line, baseline and side out bound lines
+        outer_lines = Rectangle((-250, -47.5), 500, 470, linewidth=lw,
+                                color=color, fill=False)
+        court_elements.append(outer_lines)
+
+    # Add the court elements onto the axes
+    for element in court_elements:
+        ax.add_patch(element)
+
+    return ax
+
+
+def scatter_plot_player_shots(df_player):
+    '''
+    For scatter plotting a players shots. The player needs to be held in their
+    own df for this, or all shots will be charted (as done in the final Notebook). 
+    Example: (for Steph Curry) df_player = df[df.player == 'Stephen Curry'] 
+    Then the player's df can be inputted to the plot.
+    '''
+
+    # Create basic scatterplot
+    g=sns.relplot(data=df_player, kind = 'scatter',
+    x = df_player.LOC_X, y= df_player.LOC_Y, hue= df_player.zone)
+
+    # Place scatterplot on court model
+    for i, ax in enumerate(g.axes.flat):
+        plt.title('All Three Point Shot Locations')
+        ax = draw_court(ax, outer_lines=True)
+        ax.set_xlim(-300, 300)
+        ax.set_ylim(-100, 500)

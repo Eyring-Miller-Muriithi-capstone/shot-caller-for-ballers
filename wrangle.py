@@ -1,5 +1,5 @@
 '''
-Processing functions which compute and add features, splits the dataset, encodes categoricals,
+Processing functions which computes and add features, splits the dataset, encodes categoricals,
 scales numerics and seperates into target and features.
 '''
 import pandas as pd
@@ -17,6 +17,7 @@ from sklearn.preprocessing import MinMaxScaler
 # ------------------------------------------------------------------------------------------------
 # Processing Functions
 # ------------------------------------------------------------------------------------------------
+
 
 def game_shots(df):
     '''
@@ -64,6 +65,7 @@ def game_shots(df):
         # Set the game_id for next loop comparison
         game_id = df.game_id[row]
 
+    # Build the df to return
     df['games_played'] = games_counter
     df['game_3pa'] = count_hold_3pa
     df['game_3pm'] = count_hold_3pm 
@@ -71,9 +73,10 @@ def game_shots(df):
 
     return df
 
+
 def season_shots(df):
     '''
-    Create cumulative 3 point shot information columns for each player-season
+    Create cumulative three point shot information columns for each player-season
     '''
     # Initialize game_id with the first player-game indexed in the dataframe
     player_id = 203992
@@ -100,17 +103,19 @@ def season_shots(df):
         to_date_season_3pm_hold.append(counter_3pm)
         to_date_season_3pa_hold.append(counter_3pa)
         player_id = df.player_id[row]
-        
+
+    # Build the df to return    
     df['cum_3pa'] = to_date_season_3pa_hold
     df['cum_3pm'] = to_date_season_3pm_hold 
     df['cum_3miss'] = df['cum_3pa'] - df['cum_3pm']
 
     return df
 
+
 def create_metrics(df):
     '''
     Using the new 3 point shot columns create above, we can create player metrics,
-     from the basic 3pt pecentage, to more complex metrics.
+    from the basic 3pt pecentage, to more complex metrics.
     '''
     # Simple 3pt percentage
     df['cum_3pct'] = df.cum_3pm/df.cum_3pa
@@ -127,13 +132,16 @@ def create_metrics(df):
 
     return df
 
+
 def create_distance(df):
     '''
-    Brings back the distance column using pythagorean math, and is more accurate than original
+    Brings back the distance column using pythagorean math, and is more accurate than
+    the original integer representation
     '''
     df['distance'] = ((df.loc_x/10)**2 + (df.loc_y/10)**2)**(1/2)
 
     return df
+
 
 def create_game_event(df):
     '''
@@ -152,6 +160,7 @@ def create_game_event(df):
 
     # Since we have it, returns df_outlier_3pt
     return df, df_outlier_3pt
+
 
 def encoder(train, validate, test):
     '''
@@ -174,6 +183,7 @@ def encoder(train, validate, test):
     test_encoded = pd.get_dummies(test, columns = encode_cols)
 
     return X_train_exp, train_encoded, validate_encoded, test_encoded
+
 
 def wrangle_prep():
     '''
@@ -203,9 +213,10 @@ def wrangle_prep():
 
     return df, df_outlier_3pt, X_train_exp, X_train, y_train, X_validate, y_validate, X_test, y_test
 
+
 def wrangle_prep_player(player_id):
     '''
-    Combines all wrangle functions together for a single.  Done before bivariate EDA and modeling.
+    Combines all wrangle functions together for a single player.  Done before bivariate EDA and modeling.
     Returns the original dataframe, the outlier 3pt shots (for reference), an unencoded but split X_train_exp
     for analysis, and encoded and scaled X and y for train, validate and test sets.
     '''
@@ -232,9 +243,11 @@ def wrangle_prep_player(player_id):
 
     return df, df_outlier_3pt, X_train_exp, X_train, y_train, X_validate, y_validate, X_test, y_test
 
+
 # ------------------------------------------------------------------------------------------------
 # Supporting Functions
 # ------------------------------------------------------------------------------------------------
+
 
 def scaling_minmax(train, validate, test):
     '''
@@ -242,7 +255,7 @@ def scaling_minmax(train, validate, test):
     Additionally it adds the columns names on the scaled data and returns trained scaled data, validate scaled data and test scale data.
     '''
     # Columns to scale - only those with values that range greater than 0-10ish
-    columns_to_scale = ['abs_time', 'play_time', 'since_rest', 'loc_x', 'loc_y', 'score_margin','points','cum_3pa', 'cum_3pm', 'cum_3miss','distance']
+    columns_to_scale = ['abs_time', 'play_time', 'since_rest', 'loc_x', 'loc_y', 'score_margin','points','cum_3pa', 'cum_3pm', 'cum_3miss','distance','games_played']
     #copying the dataframes for distinguishing between scaled and unscaled data
     train_scaled = train.copy()
     validate_scaled = validate.copy()
@@ -266,6 +279,7 @@ def scaling_minmax(train, validate, test):
     #returns three dataframes; train_scaled, validate_scaled, test_scaled
     return train_scaled, validate_scaled, test_scaled
 
+
 def seperate_X_y(train_scaled, validate_scaled, test_scaled):
     '''
     Takes in scaled and split data and seperates it into X and y for modeling purposes.
@@ -273,20 +287,7 @@ def seperate_X_y(train_scaled, validate_scaled, test_scaled):
     # ID target
     target = 'shot_result'
 
-    # Id initial columns to drop (additional columns may be dropped in the modeling process )
-    # X_drop_columns_list = ['player', 'player_id', 'team', 'team_id', 'game_id','loc_x', 'loc_y','shot_result',
-    #                     'game_3pa', 'game_3pm', 'game_3miss', 'cum_3pa', 'cum_3pm', 'cum_3miss','cum_3pct',
-    #                     'game_event_id', 'shot_made_flag','tm_v1','tm_v3', 'home_False', 'home_True','period_1',
-    #                     'period_2','period_3','period_5','period_6','period_7',
-    #                     'shot_type_Driving Floating Jump Shot', 'shot_type_Fadeaway Jump Shot',
-    #                     'shot_type_Floating Jump shot', 'shot_type_Jump Bank Shot',
-    #                     'shot_type_Jump Shot', 'shot_type_Pullup Jump shot',
-    #                     'shot_type_Running Jump Shot', 'shot_type_Running Pull-Up Jump Shot',
-    #                     'shot_type_Step Back Bank Jump Shot', 'shot_type_Step Back Jump shot',
-    #                     'shot_type_Turnaround Fadeaway Bank Jump Shot',
-    #                     'shot_type_Turnaround Fadeaway shot', 'shot_type_Turnaround Jump Shot']
-    
-    # Replaced columns to drop with columns to keep - note some may still be dropped in modeling
+    # Id initial columns to keep (additional columns may be dropped in the modeling process )
     X_columns_to_keep = ['abs_time', 'play_time', 'since_rest', 'score_margin', 'points',
        'games_played', 'tm_v2', 'distance', 'zone_Center',
        'zone_L Above Break', 'zone_L Below Break/Corner', 'zone_L Center',
@@ -304,6 +305,7 @@ def seperate_X_y(train_scaled, validate_scaled, test_scaled):
     y_test = test_scaled[target]
 
     return X_train, y_train, X_validate, y_validate, X_test, y_test
+
 
 def splitter(df, target = 'None', train_split_1 = .8, train_split_2 = .7, random_state = 123):
     '''

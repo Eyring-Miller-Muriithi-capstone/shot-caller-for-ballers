@@ -1,4 +1,8 @@
+'''
+Modeling Functions for NBA Three Point Shot Analysis
+'''
 import pandas as pd
+import numpy as np
 import json
 import sklearn.metrics as metrics
 from itertools import product
@@ -22,22 +26,34 @@ BASELINE_ACCURACY = 0.6424
 
 RAND_SEED = 123
 
-def column_dropper(X_train, X_validate, X_test, drop_list):
+
+def column_dropper(X_train, X_validate, drop_list):
     '''
-    Drops the features listed in the drop_list parameter from modeling.
+    Drops the features listed in the drop_list parameter from modeling (X_train and X_validate)
     '''
+    # Drop'em
     X_train = X_train.drop(columns = drop_list)
     X_validate = X_validate.drop(columns = drop_list)
+
+    return X_train, X_validate
+
+
+def column_dropper_test(X_test, drop_list):
+    '''
+    Drops the features listed in the drop_list parameter from model testing (X_test)
+    '''
+    # Drop'em
     X_test = X_test.drop(columns = drop_list)
 
-    return X_train, X_validate, X_test
+    return X_test
 
 
 def model_maker(X_train, y_train, X_validate, y_validate, drop_list, baseline_acc = BASELINE_ACCURACY):
     '''
     Makes a mass of models and returns a dataframe with accuracy metric
     '''
-    X_train, X_validate = column_dropper(X_train, X_validate,drop_list)
+    # Drop any additional columns
+    X_train, X_validate = column_dropper(X_train, X_validate, drop_list)
     outputs = []
     # Make logistic regression model
     outputs.append(make_log_reg_model(X_train, y_train, X_validate, y_validate, baseline_acc))
@@ -90,7 +106,8 @@ def test_model(X_train, y_train, X_validate, y_validate, X_test, y_test, drop_li
     This is hardcoded in based on the results of the model maker analysis above.
     '''
     # Drop those from the drop_list
-    X_train, X_validate, X_test= column_dropper(X_train, X_validate, X_test, drop_list)
+    X_train, X_validate = column_dropper(X_train, X_validate, drop_list)
+    X_test = column_dropper_test(X_test, drop_list)
 
      # Turn y Series into dataframes
     y_train = pd.DataFrame(y_train)
@@ -153,7 +170,7 @@ def best_model_elites(df, X_train, y_train, X_validate, y_validate):
         baseline_model_maker(y_train, y_validate)[0]
         BASELINE_ACCURACY = baseline_model_maker(y_train, y_validate)[1]
         # Use multi classificaiotn and ensemble model analysis on individual player
-        models = model_maker(X_train, y_train, X_validate, y_validate, ['abs_time','play_time'], baseline_acc = BASELINE_ACCURACY)
+        models = model_maker(X_train, y_train, X_validate, y_validate, ['abs_time','since_rest'], baseline_acc = BASELINE_ACCURACY)
         # Take the best model, append the name, baseline and calucalte validate difference from baseline
         best_model = models[models.better_than_baseline == True].sort_values('validate_accuracy', ascending = False).head(1)
         best_model['baseline'] = BASELINE_ACCURACY
@@ -164,7 +181,47 @@ def best_model_elites(df, X_train, y_train, X_validate, y_validate):
 
     # Set index to player and slice out relevant columns for dataframe
     best_models = best_models.set_index('player')
-    best_models = best_models[['model','attributes','baseline','train_accuracy','validate_accuracy', 'val_improvement_over_baseline']]
+    best_models = best_models[['model','attributes','baseline','train_accuracy','validate_accuracy', 'validate_improvement_over_baseline']]
+
+    return best_models
+
+
+def player_model(df, X_train, y_train, X_validate, y_validate, player_name):
+    '''
+    This function creates an list of 'elite' three point shooters (as measured by Jem-metrics, aka tm_v2)
+    It returns a mdoel based on their shots alone for the season    
+    '''
+    # Create a player dataframe
+    df_p = df[df.player == player_name]
+
+    # Create data sctructure containing both player name and player_id
+    player_id_list = df_p.player_id.unique()
+    player_name_list = df_p.player.unique()
+    elites_tuple = list(zip(player_id_list, player_name_list))
+
+    # Create dataframe to hold information
+    best_models = pd.DataFrame()
+    # Loops through elite players
+    for player in elites_tuple:
+        print('>',player[1])
+        # Pulls up player specific df
+        df, df_outlier_3pt, X_train_exp, X_train, y_train, X_validate, y_validate, X_test, y_test = wrangle_prep_player(player[0])
+        # Models player's baseline
+        baseline_model_maker(y_train, y_validate)[0]
+        BASELINE_ACCURACY = baseline_model_maker(y_train, y_validate)[1]
+        # Use multi classificaiotn and ensemble model analysis on individual player
+        models = model_maker(X_train, y_train, X_validate, y_validate, ['abs_time','since_rest'], baseline_acc = BASELINE_ACCURACY)
+        # Take the best model, append the name, baseline and calucalte validate difference from baseline
+        best_model = models[models.better_than_baseline == True].sort_values('validate_accuracy', ascending = False).head(1)
+        best_model['baseline'] = BASELINE_ACCURACY
+        best_model['player'] = player[1]
+        best_model['validate_improvement_over_baseline'] = best_model.validate_accuracy - best_model.baseline
+        # Merge it with existing dataframe tracking top models for elite players
+        best_models = pd.concat([best_models, best_model])
+
+    # Set index to player and slice out relevant columns for dataframe
+    best_models = best_models.set_index('player')
+    best_models = best_models[['model','attributes','baseline','train_accuracy','validate_accuracy', 'validate_improvement_over_baseline']]
 
     return best_models
 
