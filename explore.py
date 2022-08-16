@@ -133,7 +133,7 @@ def period_vs_target(exp):
     plt.show()
 
     # Hypothesis Test
-    observed = pd.crosstab(X_train_exp.home, X_train_exp.shot_result)
+    observed = pd.crosstab(exp.home, exp.shot_result)
     chi2, p, degf, expected = stats.chi2_contingency(observed)
     print(f'Chi-square = {chi2}')
     if p < a:
@@ -411,6 +411,10 @@ def jem_graph(df, player_list):
     for player in player_list:
         df_p = df[df['player'] == player]
         sns.lineplot(data = df_p, x = 'games_played',y = 'tm_v2')
+    plt.title('Jem-Metric Score over Season')
+    plt.xlabel('Games Played')
+    plt.ylabel('Jem-Metric Score')
+    plt.legend(player_list)
     plt.show()
 
     return 
@@ -603,3 +607,31 @@ def scatter_plot_player_shots(df_player):
         ax = draw_court(ax, outer_lines=True)
         ax.set_xlim(-300, 300)
         ax.set_ylim(-100, 500)
+
+
+# ------------------------------------------------------------------------------------------------
+# Fun Analysis
+# ------------------------------------------------------------------------------------------------
+
+
+def plot_curry_bros(X_train_exp):
+    '''
+    This function creates dataframes for two tier one players and charts comparisons
+    '''
+    # player dfs
+    steph_curry = X_train_exp[X_train_exp['player']=="Stephen Curry"]
+    seth_curry = X_train_exp[X_train_exp['player']== "Seth Curry"]
+
+    # steph_curry shots
+    fig, axes = plt.subplots(1, 2, figsize=(15, 5), sharex=True)
+    fig.suptitle('Steph Shots')
+    chart_steph = sns.countplot(ax = axes[0], data = steph_curry, x=steph_curry.zone, hue =steph_curry.shot_made_flag )
+    axes[0].set_title('Steph')
+    chart_steph.set_xticklabels(chart_steph.get_xticklabels(), rotation=90)
+    # chart_steph = sns.countplot(ax=axes[1], x=miami.zone)
+
+    # seth curry shots
+    fig.suptitle("Curry Brothers Shots")
+    seth_curry = sns.countplot(data = seth_curry, x=seth_curry.zone, hue =seth_curry.shot_made_flag)
+    axes[1].set_title('Seth')
+    seth_curry.set_xticklabels(seth_curry.get_xticklabels(), rotation=90)

@@ -114,8 +114,8 @@ def test_model(X_train, y_train, X_validate, y_validate, X_test, y_test, drop_li
     y_validate = pd.DataFrame(y_validate)
     y_test = pd.DataFrame(y_test)
 
-    # Make and train the model - this must be manually hardcoded (future change is to automate this)
-    dt = DecisionTreeClassifier(max_depth = 6, random_state=RAND_SEED)
+    # Make and train the general model - this must be manually hardcoded (future change is to automate this)
+    dt = DecisionTreeClassifier(max_depth = 7, random_state=RAND_SEED)
     dt = dt.fit(X_train, y_train['shot_result'])
 
     # Get predictions
@@ -129,7 +129,7 @@ def test_model(X_train, y_train, X_validate, y_validate, X_test, y_test, drop_li
     metrics_dict_test = metrics.classification_report(y_test['shot_result'], y_test['predicted'], output_dict=True, zero_division=True)
     output = {
         'model':'Decision Tree',
-        'attributes':'max_depth = 6',
+        'attributes':'max_depth = 7',
         'train_accuracy': metrics_dict['accuracy'],
         'validate_accuracy': metrics_dict_val['accuracy'],
         'test_accuracy':metrics_dict_test['accuracy'],
@@ -139,6 +139,76 @@ def test_model(X_train, y_train, X_validate, y_validate, X_test, y_test, drop_li
    
     return pd.DataFrame([output])
 
+
+def test_player(player_name, df, X_train, y_train, X_validate, y_validate, X_test, y_test, drop_list, baseline_acc = BASELINE_ACCURACY):
+    '''
+    Final model trained, and then run on unseen test data of individual player.  Dataframe of metrics returned.
+    This is hardcoded in based on the results of the model maker analysis above.
+    '''
+    # Get player dataframes
+    X_train, y_train, X_validate, y_validate, X_test, y_test = player_df_maker(player_name, df, X_train, y_train, X_validate, y_validate, X_test, y_test)
+
+    # Drop those from the drop_list
+    X_train, X_validate = column_dropper(X_train, X_validate, drop_list)
+    X_test = column_dropper_test(X_test, drop_list)
+
+    # Turn y Series into dataframes
+    y_train = pd.DataFrame(y_train)
+    y_validate = pd.DataFrame(y_validate)
+    y_test = pd.DataFrame(y_test)
+
+    # Make and train the player model - this must be manually hardcoded (future change is to automate this)
+    rf = RandomForestClassifier(min_samples_leaf = 2, max_depth=2, n_estimators=300, random_state=RAND_SEED)
+    rf = rf.fit(X_train, y_train['shot_result'])
+
+    # Get predictions and replace dt with model used
+    y_train['predicted'] = rf.predict(X_train)
+    y_validate['predicted'] = rf.predict(X_validate)
+    y_test['predicted'] = rf.predict(X_test)
+
+    # Get the metrics
+    metrics_dict = metrics.classification_report(y_train['shot_result'], y_train['predicted'], output_dict=True, zero_division=True)
+    metrics_dict_val = metrics.classification_report(y_validate['shot_result'], y_validate['predicted'], output_dict=True, zero_division=True)
+    metrics_dict_test = metrics.classification_report(y_test['shot_result'], y_test['predicted'], output_dict=True, zero_division=True)
+    output = {
+        'model':'Random Forest', # Edit this for player
+        'attributes':'leafs = 2 ; depth = 2 ; trees = 300', # Edit this for player
+        'train_accuracy': metrics_dict['accuracy'],
+        'validate_accuracy': metrics_dict_val['accuracy'],
+        'test_accuracy':metrics_dict_test['accuracy'],
+        'better_than_baseline':metrics_dict_test['accuracy'] > baseline_acc,
+        'beats_baseline_by':metrics_dict_test['accuracy'] - baseline_acc
+    }
+   
+    return pd.DataFrame([output])
+
+
+def player_df_maker(player_name, df, X_train, y_train, X_validate, y_validate, X_test, y_test):
+    '''
+    Reverse engineers split and encoded individual player df
+    '''
+    # Merges on each dataframe or series converted into a dataframe
+    holder = []
+    for f in [X_train, pd.DataFrame(y_train), X_validate, pd.DataFrame(y_validate), X_test, pd.DataFrame(y_test)]:
+        f = f.merge(df, how = 'inner', left_index = True, right_index = True)
+        holder.append(f)
+    # Now creates the new dataframes
+    counter = 1
+    holder2 = []
+    for x in holder:
+        x = x[x.player == player_name]
+        if counter%2 == 1:
+            x = x.iloc[:,:16]
+            x.columns = x.columns.str.strip('_x')
+        else:
+            x = x.iloc[:,:1]
+            x.columns = x.columns.str.strip('_x')
+            x = x.squeeze()
+        counter += 1
+        holder2.append(x)
+
+    return holder2[0], holder2[1], holder2[2], holder2[3], holder2[4], holder2[5]
+    
 
 # ------------------------------------------------------------------------------------------------
 # Elite Players Analysis Function
@@ -188,8 +258,7 @@ def best_model_elites(df, X_train, y_train, X_validate, y_validate):
 
 def player_model(df, X_train, y_train, X_validate, y_validate, player_name):
     '''
-    This function creates an list of 'elite' three point shooters (as measured by Jem-metrics, aka tm_v2)
-    It returns a mdoel based on their shots alone for the season    
+    This function returns a model based on an individual player  
     '''
     # Create a player dataframe
     df_p = df[df.player == player_name]
