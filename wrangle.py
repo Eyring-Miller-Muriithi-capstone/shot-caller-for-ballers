@@ -175,7 +175,7 @@ def encoder(train, validate, test):
     X_train_exp = train.copy()
 
     # Encode these columns
-    encode_cols = ['home','zone','shot_type','period']
+    encode_cols = ['home','zone','period']
 
     # Encoding
     train_encoded = pd.get_dummies(train, columns = encode_cols)
@@ -228,7 +228,7 @@ def wrangle_prep_player(player_id):
     df = create_metrics(df)
     df = create_distance(df)
     df , df_outlier_3pt = create_game_event(df)
-    df = df[df.player == player_id]
+    df = df[df.player_id == player_id]
     # Drop shot type becauase it is not helpful and causes all sorts of problems!
     dfa = df.copy()
     dfa = dfa.drop(columns = 'shot_type')
