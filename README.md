@@ -16,10 +16,11 @@ You can view our team's presentation deck here: <a href="https://www.canva.com/d
 > - Do players need rest in order for them to perform better 
 
 
-#### Project Objectives
-> - avors: Visualizing players 3 point shooting locations <br>
-> - avors: Creating tiers for the league's 3 point shooters <br>
-> - avors: Predicting whether a player should take the shot or not <br>
+### Project Objectives
+> - Creating clusters for nba shooting locations
+> - Creating tiers for the league's 3 point shooters 
+> - Visualizing players 3 point shooting locations 
+> - Predicting whether a player should take the shot or not 
 
 #### Data Dictionary
 |Feature|Datatype|Definition|
@@ -55,7 +56,7 @@ You can view our team's presentation deck here: <a href="https://www.canva.com/d
 |distance     | 84228 non-null: float64 | distance of shots from the rim |
 |game_event_id| 84228 non-null: int64   | chronological game events |
 
-##### Plan|:|: 
+#### Plan
 > <br>We plan to use the NBA api to acquire individual players game statistics for the model.<br>
 > <br>Clean the data<br>
 > <br>Visualize the data through the EDA process <br>
@@ -96,17 +97,19 @@ You can view our team's presentation deck here: <a href="https://www.canva.com/d
 ### Acquire
 
 <hr style="border-top: 10px groove blueviolet; margin-top: 1px; margin-bottom: 1px"></hr>
-> - Our analysis and model are focused on three pointers taken in the most recent (2021-2022) regular season.  Out goal was to acquire a dataframe that had every three point shot taken by eveyr player who took one, along with the result (Made or Missed) and a number of features calculated for the player and game right up to the moment the shot was taken.  The [Acquire Workbook](*/acquire_workbook.ipynb) associated with this report contains the step by step process of building our initial, raw dataset.  In brief:
+> - Our analysis and model are focused on three pointers taken in the most recent (2021-2022) regular season.  Out goal was to acquire a dataframe that had every three point shot taken by eveyr player who took one, along with the result (Made or Missed) and a number of features calculated for the player and game right up to the moment the shot was taken.  The [Acquire Workbook](*/acquire_workbook.ipynb) associated with this report contains the step by step process of building our initial, raw dataset. In brief:
+
     1. Get team-player data from 'teamplayerdashboard' endpoint and use it to acquire all shots taken in the '21-'22 Regular Season using shot information from the 'shotchartdetail' endpoint.
     2. Isolate 3-pt shots from this data and remove outliers. We used shot distance, acquired from 'shotchartdetail', as the metric to determine outliers.  Outliers were shots taken from a distance 1.5 times the IQR of all three point shots.  This eliminated all shots taken from 30 feet and beyond (2188 shots, or 2.5% of all three pointers).
-    3. Apply a KMeans clustering algorithm on all remaining three point attempts to identify the natural 'zones' from which players are shooting.  Using a k-elbow test we determined seven (7) clusteres were optimal, improving upon the NBA standard five (5) shot zones.
+    3. Apply a KMeans clustering algorithm on all remaining three point attempts to identify the natural 'zones' from which players are shooting.  Using a k-elbow test we determined seven (7) clusters were optimal, improving upon the NBA standard five (5) shot zones.
     
  
 ### Prepare
  
 <hr style="border-top: 10px groove blueviolet; margin-top: 1px; margin-bottom: 1px"></hr>
 
-> - For additional pre-processing/cleaning, we perform the following actions detailed in the [Wrangle Workbook](*/wrangle_workbook.ipynb):
+For additional pre-processing/cleaning, we perform the following actions detailed in the [Wrangle Workbook](*/wrangle_workbook.ipynb):
+
     1. Create cumulative three point stats for all players across all games.
     2. Add location back in using Pythagorean Theorem on loc_x and loc_y (was lost in the acqusition process; this is also an improvement as it is a float and does not bin by integer foot).
     3. Add back in 'game_event_id', as it is needed for the Tableau Dashboards.
@@ -122,12 +125,13 @@ You can view our team's presentation deck here: <a href="https://www.canva.com/d
 ### EDA
 
 <hr style="border-top: 10px groove blueviolet; margin-top: 1px; margin-bottom: 1px"></hr>
-> - From the visualization exploration combined with statistical testing these are the features that were significant for modeling
-     - Location on court (zone and distance)
-     - Playtime (how long a player has been on court)
-     - Score margin
-     - Number of games played
-     - Calculated player three point shooting ability (Jem-metric)
+From the visualization exploration combined with statistical testing these are the features that were significant for modeling:
+
+      - Location on court (zone and distance)
+      - Playtime (how long a player has been on court)
+      - Score margin
+      - Number of games played
+      - Calculated player three point shooting ability (Jem-metric)
 
 ### Modeling 
 
