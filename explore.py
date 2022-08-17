@@ -444,11 +444,14 @@ def winner_3pct():
                                             season_nullable = year,
                                             season_type_nullable = 'Regular Season').get_data_frames()
         df_season = df_teams[0]
+        df_season['WL'] = np.where(df_season.WL == 'W', 'Win', 'Loss')
         past_ten_cum = pd.concat([past_ten_cum,df_season])
 
+        
+
         # Seperate between winners and losers
-        season_winners = df_season[df_season.WL == 'W']
-        season_losers = df_season[df_season.WL == 'L']
+        season_winners = df_season[df_season.WL == 'Win']
+        season_losers = df_season[df_season.WL == 'Loss']
 
         # Create df
         year_holder['season'] = year
@@ -463,8 +466,8 @@ def winner_3pct():
             continue
     
     # Create aggregate column of last ten years
-    season_cum_winners = past_ten_cum[past_ten_cum.WL == 'W']
-    season_cum_losers = past_ten_cum[past_ten_cum.WL == 'L']
+    season_cum_winners = past_ten_cum[past_ten_cum.WL == 'Win']
+    season_cum_losers = past_ten_cum[past_ten_cum.WL == 'Loss']
     
     # Add cumulative to df
     past_ten.append({'season':'cumulative',
@@ -487,8 +490,8 @@ def winner_pct_h_test(df_season):
     a = .05
 
     # Seperate winning and losing teams
-    season_winners = df_season[df_season.WL == 'W']
-    season_losers = df_season[df_season.WL == 'L']
+    season_winners = df_season[df_season.WL == 'Win']
+    season_losers = df_season[df_season.WL == 'Loss']
 
     # Get three percentage for each type
     winners = season_winners.FG3_PCT
@@ -499,7 +502,7 @@ def winner_pct_h_test(df_season):
     plt.title('3-point Percentage, Winning vs. Losing Teams, 2020-21 Regular Season')
     plt.axhline(df_season['FG3_PCT'].mean(), ls='--', color='gray')
     sns.barplot(data = df_season, x = 'WL', y = 'FG3_PCT')
-    plt.xlabel('(W)inner or (L)oser')
+    plt.xlabel('Game Result')
     plt.ylabel('3-point Field Goal Percentage')
     plt.show()
 
